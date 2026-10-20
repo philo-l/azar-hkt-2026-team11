@@ -666,15 +666,21 @@
   }
 
   function checkStart() {
-    if (g.myReady && g.peerReady && isHost() && !playing()) { sendMsg({ t: "go" }); beginRound(false); }
+    if (g.myReady && g.peerReady && isHost() && !playing()) {
+      // 두 사람에게 서로 다른 필터를 나눠준다 (호스트가 정해서 알려준다)
+      const a = Math.floor(Math.random() * FILTERS.length);
+      const b = (a + 1 + Math.floor(Math.random() * (FILTERS.length - 1))) % FILTERS.length;
+      sendMsg({ t: "go", f: [a, b] });
+      beginRound(false, a, b);
+    }
   }
 
-  function beginRound(solo) {
+  function beginRound(solo, myF, peerF) {
     clearTimeout(g.decideTimer); clearTimeout(g.finalTimer);
     const now = performance.now();
     Object.assign(g, { phase: "countdown", solo, myReady: false, peerReady: false, playAt: now + COUNT_MS, roomEnd: now + ROOM_MS,
       gauge: 0, lastT: 0, overSince: 0, myLaugh: null, peerLaugh: null, myFinal: null, peerFinal: null,
-      decideTimer: null, finalTimer: null, timeUpDone: false, note: "" });
+      decideTimer: null, finalTimer: null, timeUpDone: false, note: "", myFilter: myF, peerFilter: peerF });
     state.filterStage = -1;
     if (!state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
     log(solo ? "혼자 해보기 시작" : "게임 시작");
@@ -744,7 +750,7 @@
   function onGameMsg(d) {
     switch (d.t) {
       case "ready": g.peerReady = true; checkStart(); return true;
-      case "go": if (!playing()) beginRound(false); return true;
+      case "go": if (!playing() && d.f) beginRound(false, d.f[1], d.f[0]); return true;
       case "laugh": g.peerLaugh = { t: d.at, gauge: d.gauge }; if (g.phase === "play") scheduleDecide(); return true;
       case "final": g.peerFinal = d.gauge; tryFinal(); return true;
       case "emoji": floatEmoji("localFx", d.e); return true;
@@ -774,8 +780,8 @@
     }
     if (g.phase === "play") {
       const el = now - g.playAt;
-      state.filterStage = Math.min(2, Math.floor(el / 10000));
-      setMsg(g.myLaugh ? "웃었어요! 판정 중..." : "웃으면 져요!", `단계 ${state.filterStage + 1}/3 · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
+      state.filterStage = Math.min(2, Math.floor(el / 10000)); state.filterId = g.myFilter;
+      setMsg(g.myLaugh ? "웃었어요! 판정 중..." : "웃으면 져요!", `단계 ${state.filterStage + 1}/3 · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초 · 내 필터 ${FILTERS[g.myFilter].name}` + (g.peerFilter != null ? ` · 상대 필터 ${FILTERS[g.peerFilter].name}` : "") + roomText(now));
       setBar(el / GAME_MS);
       const v = state.values, base = state.baseline ? state.baseline.smile : 0;
       const rel = v ? Math.max(0, v.smile - base) : 0;
@@ -791,49 +797,127 @@
 
   $("readyBtn").addEventListener("click", () => { g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
   $("againBtn").addEventListener("click", () => { g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
-  $("soloBtn").addEventListener("click", () => beginRound(true));
+  $("soloBtn").addEventListener("click", () => beginRound(true, Math.floor(Math.random() * FILTERS.length), null));
   $("chatBtn").addEventListener("click", () => { g.note = "(데모) 여기서 비디오챗으로 넘어갑니다. 결제는 아직 연결 안 됨"; });
   document.querySelectorAll("#emojiRow button").forEach((b) => b.addEventListener("click", () => {
     sendMsg({ t: "emoji", e: b.dataset.e });
     floatEmoji("remoteFx", b.dataset.e);
   }));
 
-  // 카메라 영상을 정사각형으로 잘라 거울 모양으로 그리고, 필터를 입힌다. 이 캔버스가 상대에게 간다.
-  function drawFilters(v, stage, vid) {
+  // ---------- 필터: WebGL로 얼굴을 늘리고 줄이고 부풀린다 ----------
+  // 필터마다 단계(1~3)에 따라 강도가 올라간다. 두 사람은 서로 다른 필터를 받는다.
+  const LVL = [0.4, 0.7, 1.0];
+  const FILTERS = [
+    { name: "빵빵 얼굴", warp: (c, l) => ({ p: [[c.fx, c.fy, c.fw * 0.85, 0.9 * l]] }) },
+    { name: "납작 얼굴", warp: (c, l) => ({ sc: [1 + 0.5 * l, 1], sp: [c.fx, c.fy] }) },
+    { name: "왕눈이", warp: (c, l) => ({ p: [[c.ax, c.ay, c.fw * 0.3, 0.9 * l], [c.bx, c.by, c.fw * 0.3, 0.9 * l]] }) },
+    { name: "길쭉 얼굴", warp: (c, l) => ({ sc: [1, 1 + 0.5 * l], sp: [c.fx, c.fy] }) },
+    { name: "콩알 얼굴", warp: (c, l) => ({ p: [[c.fx, c.fy, c.fw * 0.95, -0.9 * l]] }) }
+  ];
+
+  const glc = document.createElement("canvas");
+  glc.width = CW; glc.height = CW;
+  const gl = glc.getContext("webgl", { preserveDrawingBuffer: true });
+  let GU = null;
+  if (gl) {
+    try {
+      const mk = (type, src) => { const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+      const prog = gl.createProgram();
+      gl.attachShader(prog, mk(gl.VERTEX_SHADER, "attribute vec2 a; varying vec2 vUv; void main(){ vUv = vec2(a.x*0.5+0.5, 0.5-a.y*0.5); gl_Position = vec4(a,0.0,1.0); }"));
+      gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, `precision mediump float;
+        varying vec2 vUv; uniform sampler2D tex; uniform vec2 crop, off, sc, sp, p0, p1; uniform vec2 q0, q1;
+        void main(){
+          vec2 uv = sp + (vUv - sp) / sc;
+          vec2 d = uv - p0; float t = length(d) / q0.x;
+          if (t < 1.0) uv = p0 + d * (1.0 - q0.y * pow(1.0 - t, 2.0));
+          d = uv - p1; t = length(d) / q1.x;
+          if (t < 1.0) uv = p1 + d * (1.0 - q1.y * pow(1.0 - t, 2.0));
+          vec2 tu = vec2(1.0 - uv.x, uv.y) * crop + off;
+          gl_FragColor = texture2D(tex, tu);
+        }`));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+      gl.useProgram(prog);
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(prog, "a");
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      GU = {};
+      for (const n of ["crop", "off", "sc", "sp", "p0", "p1", "q0", "q1"]) GU[n] = gl.getUniformLocation(prog, n);
+      log("WebGL 필터 준비됨");
+    } catch (e) { GU = null; log("WebGL 필터 실패, 변형 없이 진행: " + (e.message || e)); }
+  } else log("WebGL을 쓸 수 없어 변형 필터가 꺼집니다.");
+
+  // 얼굴 값(0~1, 영상 기준)을 필터 공간(거울 모양 정사각형, 0~1)으로 옮긴다.
+  function toComp(v, vid) {
     const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
-    const P = (lx, ly) => ({ x: CW - (((lx * vw - (vw - side) / 2) / side) * CW), y: ((ly * vh - (vh - side) / 2) / side) * CW });
-    const fw = (v.fw * vw / side) * CW;
-    const top = P(v.fhx, v.fhy), a = P(v.e1x, v.e1y), b = P(v.e2x, v.e2y);
-    const [l, r] = a.x < b.x ? [a, b] : [b, a];
+    const P = (lx, ly) => [1 - ((lx * vw - (vw - side) / 2) / side), (ly * vh - (vh - side) / 2) / side];
+    const A = P(v.e1x, v.e1y), B = P(v.e2x, v.e2y), M = P(v.mx, v.my), T = P(v.fhx, v.fhy);
+    const [l, r] = A[0] < B[0] ? [A, B] : [B, A];
+    const mid = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+    return { fx: (mid[0] + M[0]) / 2, fy: (mid[1] + M[1]) / 2, fw: v.fw * vw / side, ax: l[0], ay: l[1], bx: r[0], by: r[1], tx: T[0], ty: T[1] };
+  }
+
+  function renderGL(vid, c, filterId, stage) {
+    gl.viewport(0, 0, CW, CW);
+    gl.bindTexture(gl.TEXTURE_2D, gl.getParameter(gl.TEXTURE_BINDING_2D));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, vid);
+    const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
+    gl.uniform2f(GU.crop, side / vw, side / vh);
+    gl.uniform2f(GU.off, (vw - side) / 2 / vw, (vh - side) / 2 / vh);
+    let w = {};
+    if (c && stage >= 0 && FILTERS[filterId]) w = FILTERS[filterId].warp(c, LVL[stage]);
+    const sc = w.sc || [1, 1], sp = w.sp || [0.5, 0.5];
+    const p = w.p || [], z = [0.5, 0.5, 0.5, 0];
+    const p0 = p[0] || z, p1 = p[1] || z;
+    gl.uniform2f(GU.sc, sc[0], sc[1]); gl.uniform2f(GU.sp, sp[0], sp[1]);
+    gl.uniform2f(GU.p0, p0[0], p0[1]); gl.uniform2f(GU.q0, p0[2], p0[3]);
+    gl.uniform2f(GU.p1, p1[0], p1[1]); gl.uniform2f(GU.q1, p1[2], p1[3]);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // 단계가 올라가면 눈물과 이모지를 얹는다 (억울한 느낌)
+  function drawDecor(c, stage) {
     cctx.textAlign = "center"; cctx.textBaseline = "middle";
-    const emo = (t, x, y, sz) => { cctx.font = `${sz}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`; cctx.fillText(t, x, y); };
-    emo("🎩", top.x, top.y - fw * 0.28, fw * 0.55);
+    const emo = (t, x, y, sz) => { cctx.font = `${sz}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`; cctx.fillText(t, x * CW, y * CW); };
+    const fw = c.fw;
     if (stage >= 1) {
-      cctx.lineWidth = Math.max(4, fw * 0.045); cctx.lineCap = "round"; cctx.strokeStyle = "#2b1d12";
-      const w = fw * 0.13, up = fw * 0.2, t = fw * 0.05;
-      cctx.beginPath(); cctx.moveTo(l.x - w, l.y - up + t); cctx.lineTo(l.x + w, l.y - up - t); cctx.stroke();
-      cctx.beginPath(); cctx.moveTo(r.x - w, r.y - up - t); cctx.lineTo(r.x + w, r.y - up + t); cctx.stroke();
-      emo("💧", l.x - w * 0.2, l.y + fw * 0.18, fw * 0.16);
-      emo("💧", r.x + w * 0.2, r.y + fw * 0.18, fw * 0.16);
+      emo("💧", c.ax, c.ay + fw * 0.22, fw * CW * 0.16);
+      emo("💧", c.bx, c.by + fw * 0.22, fw * CW * 0.16);
     }
     if (stage >= 2) {
-      emo("😭", top.x - fw * 0.75, top.y + fw * 0.05, fw * 0.4);
-      emo("😭", top.x + fw * 0.75, top.y + fw * 0.05, fw * 0.4);
-      emo("💦", l.x - fw * 0.1, l.y + fw * 0.35, fw * 0.2);
-      emo("💦", r.x + fw * 0.1, r.y + fw * 0.35, fw * 0.2);
+      emo("😭", c.tx - fw * 0.75, c.ty + fw * 0.05, fw * CW * 0.4);
+      emo("😭", c.tx + fw * 0.75, c.ty + fw * 0.05, fw * CW * 0.4);
     }
   }
+
+  // 카메라 영상을 정사각형으로 잘라 거울 모양으로 그리고 필터를 입힌다. 이 캔버스가 상대에게 간다.
   function drawComp() {
     const vid = $("localVideo");
     if (vid.videoWidth) {
-      const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
       const stage = state.filterStage;
       const jx = stage >= 2 ? (Math.random() - 0.5) * 8 : 0, jy = stage >= 2 ? (Math.random() - 0.5) * 8 : 0;
+      const c = state.values && stage >= 0 ? toComp(state.values, vid) : null;
       cctx.save();
-      cctx.translate(CW + jx, jy); cctx.scale(-1, 1);
-      cctx.drawImage(vid, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, CW, CW);
+      cctx.translate(jx, jy);
+      if (GU) {
+        renderGL(vid, c, state.filterId, stage);
+        cctx.drawImage(glc, 0, 0);
+      } else {
+        const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
+        cctx.translate(CW, 0); cctx.scale(-1, 1);
+        cctx.drawImage(vid, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, CW, CW);
+      }
       cctx.restore();
-      if (stage >= 0 && state.values) drawFilters(state.values, stage, vid);
+      if (c) drawDecor(c, stage);
     }
     requestAnimationFrame(drawComp);
   }
