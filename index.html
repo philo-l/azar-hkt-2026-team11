@@ -825,21 +825,39 @@
   // 이 효과는 상대에게 가는 영상에 그려지므로 상대도 내가 맞는 걸 본다.
   if (!CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
   const easeOutBack = (x) => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2);
+  // 얼굴 위치와 크기 (px). 이펙트가 얼굴을 가리지 않도록 얼굴 바깥에만 그린다.
+  function faceBox() {
+    const c = state.lastC;
+    return { x: (c ? c.F[0] : 0.5) * CW, y: (c ? c.F[1] : 0.5) * CW, w: (c ? c.fw : 0.5) * CW };
+  }
   function spawnHit(now, dmg) {
-    const fx = state.fx, c = state.lastC;
-    const cx = ((c ? c.F[0] : 0.5) + (Math.random() - 0.5) * 0.25) * CW, cy = ((c ? c.F[1] : 0.5) + (Math.random() - 0.5) * 0.2) * CW;
+    const fx = state.fx, f = faceBox();
     const pw = Math.min(1, dmg / 14);
-    fx.bursts.push({ x: cx, y: cy, t: now, n: Math.max(1, Math.round(dmg)), rot: (Math.random() - 0.5) * 0.5, r: 62 + 52 * pw });
+    let r = 62 + 52 * pw;
+    const rx = f.w * 0.55, roomL = f.x - rx, roomR = CW - (f.x + rx);
+    const side = roomL > roomR ? -1 : 1, room = Math.max(roomL, roomR);
+    r = Math.min(r, room / 1.6);
+    let cx, cy;
+    if (r >= 30) {
+      cx = Math.max(r * 0.8, Math.min(CW - r * 0.8, f.x + side * (rx + r * 0.8)));
+      cy = Math.max(r * 0.8, Math.min(CW - r * 0.8, f.y + (Math.random() - 0.5) * f.w * 0.9));
+    } else { r = 34; cx = Math.random() < 0.5 ? CW * 0.1 : CW * 0.9; cy = CW * 0.2; }
+    fx.bursts.push({ x: cx, y: cy, t: now, n: Math.max(1, Math.round(dmg)), rot: (Math.random() - 0.5) * 0.5, r });
     fx.rings.push({ x: cx, y: cy, t: now });
-    const n = Math.round(10 + 14 * pw);
-    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 140 + Math.random() * 280; fx.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: now }); }
+    const n = Math.round(8 + 10 * pw);
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 90 + Math.random() * 110; fx.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: now }); }
     fx.shake = Math.max(fx.shake, 0.6 + 0.4 * pw); fx.impact = 1; fx.lastHit = now; state.flash = 1;
   }
   function addCrack() {
-    const x0 = CW * (0.15 + Math.random() * 0.7), y0 = CW * (0.15 + Math.random() * 0.7), lines = [];
-    for (let b = 0; b < 4; b++) {
-      let x = x0, y = y0, a = Math.random() * 6.283; const pts = [[x, y]];
-      for (let k = 0; k < 5; k++) { a += (Math.random() - 0.5) * 0.9; const l = 20 + Math.random() * 40; x += Math.cos(a) * l; y += Math.sin(a) * l; pts.push([x, y]); }
+    const f = faceBox(), rx = f.w * 0.6, ry = f.w * 0.8, lines = [];
+    let x0 = CW * 0.1, y0 = CW * 0.1;
+    for (let i = 0; i < 30; i++) {
+      const x = CW * (0.05 + Math.random() * 0.9), y = CW * (0.05 + Math.random() * 0.9);
+      if (Math.pow((x - f.x) / rx, 2) + Math.pow((y - f.y) / ry, 2) > 1) { x0 = x; y0 = y; break; }
+    }
+    for (let b = 0; b < 3; b++) {
+      let x = x0, y = y0, a = Math.atan2(y0 - f.y, x0 - f.x) + (Math.random() - 0.5) * 1.6; const pts = [[x, y]];
+      for (let k = 0; k < 5; k++) { a += (Math.random() - 0.5) * 0.7; const l = 18 + Math.random() * 34; x += Math.cos(a) * l; y += Math.sin(a) * l; pts.push([x, y]); }
       lines.push(pts);
     }
     state.fx.cracks.push(lines);
@@ -859,7 +877,7 @@
     cctx.textAlign = "center"; cctx.textBaseline = "middle";
     // 붉은 비네팅
     if (state.flash > 0) {
-      const gr = cctx.createRadialGradient(CW / 2, CW / 2, CW * 0.2, CW / 2, CW / 2, CW * 0.75);
+      const gr = cctx.createRadialGradient(CW / 2, CW / 2, CW * 0.32, CW / 2, CW / 2, CW * 0.75);
       gr.addColorStop(0, "rgba(255,0,0,0)");
       gr.addColorStop(1, `rgba(255,0,0,${0.7 * state.flash})`);
       cctx.fillStyle = gr; cctx.fillRect(0, 0, CW, CW);
@@ -869,7 +887,7 @@
     if (fx.impact > 0) {
       cctx.strokeStyle = `rgba(255,255,255,${0.9 * fx.impact})`; cctx.lineWidth = 3;
       for (let i = 0; i < 30; i++) {
-        const a = (i / 30) * 6.283 + Math.random() * 0.1, r0 = CW * (0.32 + Math.random() * 0.1), r1 = CW * (0.62 + Math.random() * 0.15);
+        const a = (i / 30) * 6.283 + Math.random() * 0.1, r0 = CW * (0.45 + Math.random() * 0.08), r1 = CW * (0.7 + Math.random() * 0.12);
         cctx.beginPath(); cctx.moveTo(CW / 2 + Math.cos(a) * r0, CW / 2 + Math.sin(a) * r0); cctx.lineTo(CW / 2 + Math.cos(a) * r1, CW / 2 + Math.sin(a) * r1); cctx.stroke();
       }
       fx.impact = Math.max(0, fx.impact - 0.09);
@@ -885,13 +903,13 @@
     fx.rings = fx.rings.filter((q) => now - q.t < 450);
     for (const q of fx.rings) {
       const age = (now - q.t) / 450;
-      cctx.beginPath(); cctx.arc(q.x, q.y, 20 + age * CW * 0.42, 0, 6.283);
+      cctx.beginPath(); cctx.arc(q.x, q.y, 16 + age * CW * 0.18, 0, 6.283);
       cctx.strokeStyle = `rgba(255,170,0,${1 - age})`; cctx.lineWidth = 12 * (1 - age) + 1; cctx.stroke();
     }
     // 불꽃
     fx.sparks = fx.sparks.filter((q) => now - q.t < 520);
     for (const q of fx.sparks) {
-      const age = (now - q.t) / 520, x = q.x + q.vx * age, y = q.y + q.vy * age + 260 * age * age;
+      const age = (now - q.t) / 520, x = q.x + q.vx * age, y = q.y + q.vy * age + 150 * age * age;
       cctx.beginPath(); cctx.moveTo(x, y); cctx.lineTo(x - q.vx * 0.04, y - q.vy * 0.04);
       cctx.strokeStyle = `rgba(255,${Math.round(220 - 120 * age)},40,${1 - age})`; cctx.lineWidth = 4 * (1 - age) + 1; cctx.stroke();
     }
@@ -905,7 +923,7 @@
       cctx.fillStyle = "#ffe14d"; cctx.fill();
       cctx.lineWidth = 6; cctx.strokeStyle = "#ff5a00"; cctx.stroke();
       cctx.save(); cctx.translate(q.x, y); cctx.rotate(q.rot * 0.6); cctx.scale(k, k);
-      cctx.font = 'italic 900 56px "Apple SD Gothic Neo", system-ui, sans-serif';
+      cctx.font = `italic 900 ${Math.max(28, Math.round(q.r * 0.6))}px "Apple SD Gothic Neo", system-ui, sans-serif`;
       cctx.lineWidth = 9; cctx.strokeStyle = "#1a1a1a"; cctx.lineJoin = "round";
       cctx.strokeText("-" + q.n, 0, 2); cctx.fillStyle = "#fff"; cctx.fillText("-" + q.n, 0, 2);
       cctx.restore();
@@ -918,7 +936,7 @@
       cctx.globalAlpha = Math.min(1, (900 - (now - fx.lastHit)) / 400);
       for (let i = 0; i < 3; i++) {
         const a = a0 + (i * 6.283) / 3;
-        cctx.fillText("⭐", c.T[0] * CW + Math.cos(a) * r, c.T[1] * CW - c.fw * CW * 0.12 + Math.sin(a) * r * 0.3);
+        cctx.fillText("⭐", c.T[0] * CW + Math.cos(a) * r, c.T[1] * CW - c.fw * CW * 0.3 + Math.sin(a) * r * 0.25);
       }
       cctx.globalAlpha = 1;
     }
