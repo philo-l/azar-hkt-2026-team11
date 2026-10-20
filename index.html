@@ -777,7 +777,7 @@
       state.filterStage = 0;
       state.filterId = g.mySeq[step % g.mySeq.length];
       const ramp = Math.min(1, (el % STEP_MS) / 500);
-      state.filterLvl = (0.75 + 0.25 * Math.min(1, el / GAME_MS)) * (ramp * ramp * (3 - 2 * ramp));
+      state.filterLvl = (0.9 + 0.1 * Math.min(1, el / GAME_MS)) * (ramp * ramp * (3 - 2 * ramp));
       const v = state.values, base = state.baseline ? state.baseline.smile : 0;
       const rel = v ? Math.max(0, v.smile - base) : 0;
       g.score += Math.max(0, rel - SMILE_DEAD) * SCORE_K * dt / 1000;
@@ -804,15 +804,16 @@
   // ---------- 필터: WebGL로 얼굴 부위를 따로 변형한다 ----------
   // 3~5초마다 필터가 바뀌고, 표정(입 벌림, 미소, 깜빡임)에 따라 변형이 커진다. 변형은 얼굴 타원 안쪽에서만 적용되고 배경은 그대로다.
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
-  const bp = (c, pt, k, s) => [pt[0], pt[1], c.fw * k, Math.max(-0.95, Math.min(0.92, s))];
+  const bp = (c, pt, k, s) => [pt[0], pt[1], c.fw * k, Math.max(-2.5, Math.min(0.97, s))];
+  // 외계인처럼 과장한다: 커지는 부위는 크게 부풀리고, 줄어드는 부위는 콩알만 하게 만든다.
   const FILTERS = [
-    { name: "큰 입", warp: (c, L, e) => ({ p: [bp(c, c.M, 0.3, (0.45 + 0.45 * e.j) * L * 1.1), bp(c, c.le, 0.2, -0.5 * L), bp(c, c.re, 0.2, -0.5 * L)] }) },
-    { name: "큰 코", warp: (c, L) => ({ p: [bp(c, c.N, 0.3, 0.9 * L), bp(c, c.le, 0.2, -0.5 * L), bp(c, c.re, 0.2, -0.5 * L)] }) },
-    { name: "풍선 볼", warp: (c, L, e) => ({ p: [bp(c, c.lc, 0.3, (0.5 + 0.4 * e.sm) * L), bp(c, c.rc, 0.3, (0.5 + 0.4 * e.sm) * L)] }) },
-    { name: "짝눈", warp: (c, L, e) => ({ p: [bp(c, c.le, 0.26, (0.7 + 0.25 * e.bl) * L), bp(c, c.re, 0.22, -0.6 * L)] }) },
-    { name: "쭉 턱", warp: (c, L, e) => ({ sc: [1, 1 + 0.55 * (0.5 + 0.5 * e.j) * L], sp: c.M, sr: c.fw * 0.9, p: [bp(c, c.H, 0.25, 0.5 * L)] }) },
-    { name: "큰 이마", warp: (c, L) => ({ p: [bp(c, [c.T[0], c.T[1] + 0.12 * c.fw], 0.32, 0.9 * L), bp(c, c.le, 0.18, -0.4 * L), bp(c, c.re, 0.18, -0.4 * L)] }) },
-    { name: "콩알 얼굴", warp: (c, L, e) => ({ p: [bp(c, c.F, 0.65, -0.9 * L), bp(c, c.M, 0.2, (0.3 + 0.5 * e.j) * L)] }) }
+    { name: "왕입 외계인", warp: (c, L, e) => ({ p: [bp(c, c.M, 0.6, (0.8 + 0.17 * e.j) * L), bp(c, c.le, 0.3, -2.2 * L), bp(c, c.re, 0.3, -2.2 * L), bp(c, c.N, 0.25, -1.5 * L)] }) },
+    { name: "왕코 외계인", warp: (c, L) => ({ p: [bp(c, c.N, 0.65, 0.97 * L), bp(c, c.le, 0.3, -2.4 * L), bp(c, c.re, 0.3, -2.4 * L), bp(c, c.M, 0.3, -1.8 * L)] }) },
+    { name: "풍선 볼", warp: (c, L, e) => ({ p: [bp(c, c.lc, 0.55, (0.8 + 0.17 * e.sm) * L), bp(c, c.rc, 0.55, (0.8 + 0.17 * e.sm) * L), bp(c, c.M, 0.3, -2 * L), bp(c, c.N, 0.2, -1.5 * L)] }) },
+    { name: "짝눈", warp: (c, L, e) => ({ p: [bp(c, c.le, 0.5, (0.85 + 0.12 * e.bl) * L), bp(c, c.re, 0.32, -2.5 * L), bp(c, c.M, 0.3, -1.2 * L)] }) },
+    { name: "쭉 턱", warp: (c, L, e) => ({ sc: [1, 1 + 1.3 * (0.6 + 0.4 * e.j) * L], sp: c.M, sr: c.fw * 1.15, p: [bp(c, c.H, 0.5, 0.9 * L), bp(c, c.le, 0.28, -1.8 * L), bp(c, c.re, 0.28, -1.8 * L)] }) },
+    { name: "왕이마 외계인", warp: (c, L) => ({ p: [bp(c, [c.T[0], c.T[1] + 0.15 * c.fw], 0.6, 0.97 * L), bp(c, c.le, 0.28, -2 * L), bp(c, c.re, 0.28, -2 * L), bp(c, c.M, 0.3, -2.2 * L)] }) },
+    { name: "콩알 얼굴", warp: (c, L, e) => ({ p: [bp(c, c.F, 0.95, -2.5 * L), bp(c, c.M, 0.25, (0.5 + 0.4 * e.j) * L)] }) }
   ];
 
   const glc = document.createElement("canvas");
@@ -889,7 +890,7 @@
     (w.p || []).forEach((q, i) => { if (i < 4) pp.set(q, i * 4); });
     gl.uniform2f(GU.sc, sc[0], sc[1]); gl.uniform2f(GU.sp, sp[0], sp[1]); gl.uniform1f(GU.sr, w.sr || 1.0);
     gl.uniform4fv(GU.pp, pp);
-    if (c) gl.uniform4f(GU.mk, c.F[0], c.F[1], c.fw * 0.62, c.fw * 0.85);
+    if (c) gl.uniform4f(GU.mk, c.F[0], c.F[1], c.fw * 0.95, c.fw * 1.25);
     else gl.uniform4f(GU.mk, 0.5, 0.5, 1, 1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
