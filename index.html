@@ -123,7 +123,7 @@
 <main>
   <header>
     <h1>Azar Play 스모크 테스트</h1>
-    <p class="lead">카메라, 얼굴 인식, 두 기기 연결이 이 기기와 브라우저에서 되는지 확인합니다. 아래 순서대로 눌러보고, 마지막의 결과 보고서를 복사해서 보내주세요.</p>
+    <p class="lead">카메라, 얼굴 인식, 두 기기 연결이 이 기기와 브라우저에서 되는지 확인합니다. 카메라 허용만 눌러주세요. 얼굴 기준선은 자동으로 측정됩니다. 두 기기를 연결해보려면 아래 링크를 상대에게 보내고, 마지막에 결과 보고서를 복사해서 보내주세요.</p>
   </header>
 
   <div id="secureNotice" class="notice">이 주소는 HTTPS가 아니라서 브라우저가 카메라를 막을 수 있습니다. GitHub Pages 주소(https://로 시작)로 열어주세요.</div>
@@ -132,7 +132,7 @@
     <h2 id="s1">1. 카메라와 얼굴 인식</h2>
     <div class="row">
       <button id="startBtn" class="primary" type="button">카메라 시작</button>
-      <button id="baseBtn" class="ghost" type="button" disabled>무표정 기준선 저장 (2초)</button>
+      <button id="baseBtn" class="ghost" type="button" disabled>기준선 다시 측정 (무표정 2초)</button>
     </div>
     <div class="chips" aria-live="polite">
       <span class="chip" id="chipCam" data-state="idle"><i></i><b>카메라</b> <span>대기</span></span>
@@ -192,14 +192,15 @@
 
   <section class="card" aria-labelledby="s3">
     <h2 id="s3">2. 두 기기 연결</h2>
-    <p class="small">두 기기 모두 위 1번에서 카메라를 시작한 뒤, 한쪽의 링크를 다른 쪽에서 열거나 ID를 입력하세요.</p>
+    <p class="small"><b>링크 복사</b>를 눌러 상대에게 보내세요. 상대가 그 링크를 열고 카메라를 허용하면 자동으로 연결됩니다.</p>
     <dl class="kv" style="margin-top:12px">
       <dt>내 ID</dt><dd id="myId">연결 서버 접속 중...</dd>
     </dl>
     <div class="row" style="margin-top:12px">
-      <button id="copyLinkBtn" class="ghost" type="button" disabled>내 링크 복사</button>
+      <button id="copyLinkBtn" class="ghost" type="button" disabled>링크 복사 (상대에게 보내기)</button>
     </div>
-    <div class="row" style="margin-top:12px">
+    <p class="small" style="margin-top:12px">링크가 안 열릴 때만: 상대 ID를 직접 입력해 연결할 수 있습니다.</p>
+    <div class="row" style="margin-top:8px">
       <input id="remoteId" type="text" inputmode="text" autocomplete="off" autocapitalize="off" placeholder="상대 ID 붙여넣기" aria-label="상대 ID">
       <button id="connectBtn" type="button" disabled>연결</button>
     </div>
@@ -386,6 +387,11 @@
     render(v);
     draw(v);
     renderFps(ms);
+    if (!state.baseline && !state.collecting && !state.autoBaseDone) {
+      state.autoBaseDone = true;
+      log("얼굴이 잡혀서 기준선을 자동 측정합니다. 무표정으로 2초 가만히 있어주세요.");
+      saveBaseline();
+    }
   }
 
   function render(v) {
@@ -453,9 +459,10 @@
       } else {
         $("baseline").textContent = "저장 실패 (얼굴이 안 잡혔습니다)";
         log("기준선 저장 실패: 얼굴 프레임이 부족합니다.");
+        state.autoBaseDone = false;
       }
       $("baseBtn").disabled = false;
-      $("baseBtn").textContent = "무표정 기준선 저장 (2초)";
+      $("baseBtn").textContent = "기준선 다시 측정 (무표정 2초)";
     }, 2000);
   }
 
@@ -464,6 +471,18 @@
     const ready = !!state.stream && !!state.peer && !!state.myId;
     $("connectBtn").disabled = !ready;
     $("copyLinkBtn").disabled = !state.myId;
+    tryAutoConnect();
+  }
+
+  // 링크(#ID)로 들어왔으면 카메라와 서버가 준비되는 대로 자동 연결
+  function tryAutoConnect() {
+    if (state.autoConnected || !state.stream || !state.peer || !state.myId) return;
+    const hash = location.hash.replace("#", "");
+    if (!hash || hash === state.myId) return;
+    state.autoConnected = true;
+    $("remoteId").value = hash;
+    log("링크의 상대에게 자동으로 연결합니다.");
+    connectToRemote();
   }
 
   function initPeer() {
@@ -608,6 +627,7 @@
   });
 
   initPeer();
+  startCamera();
 </script>
 </body>
 </html>
