@@ -87,6 +87,8 @@
   }
   #localVideo { opacity: 0; }
   #overlay { display: none; }
+  #mascot { display: none; }
+  .cell.mascot #mascot { display: block; }
   .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
   .pop { position: absolute; bottom: 8%; font-size: 48px; animation: rise 1.8s ease-out forwards; }
   @keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-220px); opacity: 0; } }
@@ -162,6 +164,7 @@
       </div>
       <div class="cell" id="remoteCell">
         <video id="remoteVideo" playsinline muted autoplay></video>
+        <canvas id="mascot"></canvas>
         <div class="fx" id="remoteFx"></div>
         <div class="empty">2번에서 연결하면 상대 얼굴이 여기에 보입니다.</div>
         <span class="tag">상대</span>
@@ -183,8 +186,12 @@
       <button id="soloEatBtn" class="ghost" type="button" disabled>혼자 해보기: 고진감래</button>
     </div>
     <div id="afterRow" class="row" style="margin-top:12px" hidden>
-      <button id="chatBtn" class="primary" type="button">이 사람과 비디오챗으로</button>
-      <button id="againBtn" class="ghost" type="button">한 판 더</button>
+      <button id="chatBtn" class="primary" type="button">Switch to Video Chat</button>
+      <button id="againBtn" class="primary" type="button">Next Game</button>
+    </div>
+    <div id="paySheet" class="notice" style="background:#eef6ff;color:#0b3a6f">
+      <b>Switch to video chat?</b> <span class="small">Demo only. No real payment.</span>
+      <div class="row" style="margin-top:8px"><button id="payOk" class="primary" type="button">Confirm</button><button id="payNo" class="ghost" type="button">Cancel</button></div>
     </div>
     <div id="emojiRow" class="row" style="margin-top:12px" hidden>
       <button class="ghost" type="button" data-e="👏">👏</button>
@@ -534,8 +541,9 @@
       log(`${i + 1}번 자리에 입장했습니다.`);
       startDialing();
     });
-    peer.on("connection", (c) => { log("상대가 연결을 요청했습니다."); setupData(c); });
+    peer.on("connection", (c) => { if (state.matchMode === "mascot") { c.close(); return; } log("상대가 연결을 요청했습니다."); setupData(c); });
     peer.on("call", (call) => {
+      if (state.matchMode === "mascot") return;
       log("상대의 영상 호출 수신");
       call.answer(state.out);
       setupCall(call);
@@ -567,6 +575,7 @@
     clearInterval(dialTimer);
     if (slotIndex !== 1) return;
     dialTimer = setInterval(() => {
+      if (state.matchMode === "mascot") return;
       if (!state.stream || !state.peer || !state.myId) return;
       if (state.data && state.data.open) return;
       if (Date.now() - (state.dialAt || 0) < 6000) return;
@@ -670,11 +679,13 @@
     rb.textContent = !linked() ? "연결 기다리는 중" : g.myReady ? "상대 기다리는 중..." : "준비";
     $("soloBtn").disabled = playing() || !state.landmarker;
     $("soloEatBtn").disabled = playing() || !state.landmarker;
-    $("afterRow").hidden = g.phase !== "reaction";
-    $("emojiRow").hidden = g.phase !== "reaction";
-    $("againBtn").disabled = !linked() || g.myReady;
-    $("againBtn").textContent = g.myReady ? "상대 기다리는 중..." : "한 판 더";
-    $("chatBtn").disabled = !linked();
+    const after = g.phase === "reaction" || g.phase === "chat", mascot = g.opp === "mascot";
+    $("afterRow").hidden = !after;
+    $("emojiRow").hidden = !after;
+    $("againBtn").textContent = g.phase === "chat" ? "Leave" : "Next Game";
+    $("chatBtn").hidden = g.phase === "chat";
+    $("chatBtn").disabled = !linked() || mascot;
+    $("chatBtn").textContent = mascot ? "Meet a real person" : "Switch to Video Chat";
   }
 
   function floatEmoji(id, e) {
@@ -715,6 +726,7 @@
   }
 
   function beginRound(solo, mySeq, peerSeq, game = "laugh", seed = 1) {
+    g.mascot = false;
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     const now = performance.now();
     Object.assign(g, { phase: "countdown", solo, myReady: false, peerReady: false, playAt: now + COUNT_MS, roomEnd: now + ROOM_MS,
@@ -739,6 +751,7 @@
   }
   function onTimeUp() {
     g.timeUpDone = true; g.myFinal = g.score;
+    if (g.mascot) { g.peerFinal = g.mascotFinal; tryFinal(); return; }
     if (g.solo) { finish("survive"); return; }
     sendMsg({ t: "final", gauge: g.score });
     tryFinal();
@@ -757,23 +770,54 @@
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     g.phase = "reaction"; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
     g.resultMsg = (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
-    g.resultSub = `${g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + (g.solo || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
+    g.resultSub = `${g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + ((g.solo && !g.mascot) || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
     setBar(1);
     log("결과: " + r + " / 내 점수 " + fmt(g.score, 0));
     ui();
   }
   function expire() {
-    g.phase = "expired"; state.filterStage = -1; setLive(false); setVoice(null); state.voiceFor = null;
-    log("방이 닫혔습니다.");
-    ui();
+    log("The room closed.");
+    enterSearching("The room closed");
   }
   function onLinkLost() {
-    if ((playing() || g.phase === "reaction") && !g.solo) {
+    if ((playing() || g.phase === "reaction" || g.phase === "chat") && !g.solo) {
       clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
-      g.phase = "idle"; g.note = "상대가 나갔어요."; setLive(false);
+      g.phase = "idle"; g.note = "Your partner left."; setLive(false);
       state.filterStage = -1; setVoice(null); state.voiceFor = null;
     }
     g.myReady = false; g.peerReady = false; ui();
+  }
+
+  // ---------- 비디오챗, Next Game, 아주주 ----------
+  function enterChat(note) {
+    clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
+    g.phase = "chat"; g.note = note; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
+    setLive(true);
+    ui();
+  }
+  function nextGame() {
+    if (g.opp !== "mascot" && linked()) sendMsg({ t: "leave" });
+    enterSearching("");
+  }
+  // 새 매칭: 지금 연결을 끊고 5~10초 찾는 척한 뒤 아주주가 상대로 등장한다. 두 명만 쓰는 시연이라 같은 사람과 다시 이어지지 않도록 새 상대 찾기 모드로 둔다.
+  function enterSearching(note) {
+    clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
+    try { if (state.call) state.call.close(); if (state.data) state.data.close(); } catch (e) {}
+    state.data = null; state.call = null;
+    $("remoteCell").classList.remove("has-stream", "mascot");
+    const em = $("remoteCell").querySelector(".empty"); if (em) em.textContent = "Finding someone new…";
+    state.matchMode = "mascot"; g.opp = "searching"; g.mascot = false; g.solo = false;
+    setLive(false); setVoice(null); state.voiceFor = null; state.filterStage = -1; state.eatTargets = [];
+    g.phase = "searching"; g.searchEnd = performance.now() + 5000 + Math.random() * 5000; g.note = note || "";
+    chip("chipLink", "busy", "Searching");
+    ui();
+  }
+  function startMascotRound() {
+    const game = g.lastGame === "laugh" ? "eat" : "laugh";
+    $("remoteCell").classList.add("has-stream", "mascot");
+    beginRound(true, makeSeqs()[0], null, game, Math.floor(Math.random() * 1e9));
+    g.opp = "mascot"; g.mascot = true; g.mascotFinal = game === "eat" ? 70 : 45;
+    chip("chipLink", "ok", "Ajuju");
   }
 
   function onGameMsg(d) {
@@ -781,6 +825,8 @@
       case "ready": g.peerReady = true; checkStart(); return true;
       case "go": if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0], d.game || "laugh", d.seed || 1); return true;
       case "score": g.peerScore = d.s; return true;
+      case "chat": enterChat("Your partner switched to video chat"); return true;
+      case "leave": clearTimeout(g.finalTimer); clearTimeout(g.koTimer); g.phase = "moved"; g.movedEnd = performance.now() + 2000; setLive(false); setVoice(null); state.filterStage = -1; state.eatTargets = []; ui(); return true;
       case "ko": g.peerKO = true; if (g.phase === "play" && !g.myKO) finish("ko_win"); return true;
       case "final": g.peerFinal = d.gauge; tryFinal(); return true;
       case "emoji": floatEmoji("localFx", d.e); return true;
@@ -843,8 +889,9 @@
         } else if (now - g.openAt > 1500) { g.mouthOpen = false; g.needClose = true; g.openTarget = null; }   // 입을 계속 벌려두는 건 인정 안 함
       }
     }
+    if (g.mascot) g.peerScore = g.mascotFinal * Math.min(1, el / GAME_MS);
     if (now - g.lastSend > 200) { g.lastSend = now; sendMsg({ t: "score", s: g.score }); }
-    setMsg("입을 열었다 닫아서 먹어요!", `내 점수 ${fmt(g.score, 0)}` + (g.solo ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
+    setMsg("입을 열었다 닫아서 먹어요!", `내 점수 ${fmt(g.score, 0)}` + (g.solo && !g.mascot ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
     setBar(el / GAME_MS);
     $("sMe").style.width = Math.min(100, g.score / EAT_MAX * 100) + "%";
     $("sOpp").style.width = Math.min(100, g.peerScore / EAT_MAX * 100) + "%";
@@ -862,6 +909,9 @@
   function gameTick() {
     const now = performance.now();
     if (now - lastUi > 250) { lastUi = now; ui(); }
+    if (g.phase === "searching") { setMsg("Finding someone new…", g.note); if (now >= g.searchEnd) startMascotRound(); return; }
+    if (g.phase === "moved") { setMsg("Your partner moved on", ""); if (now >= g.movedEnd) enterSearching(""); return; }
+    if (g.phase === "chat") { setMsg("Video chat", g.note || ""); return; }
     if (g.phase === "idle") {
       setMsg(linked() ? "준비를 눌러주세요" : "상대를 기다리는 중...", g.note || (linked() ? "" : "혼자 해보기로도 테스트할 수 있어요"));
       return;
@@ -892,6 +942,7 @@
       const rel = v ? Math.max(0, v.smile - base) : 0;
       const gained = Math.max(0, rel - SMILE_DEAD) * SCORE_K * dt / 1000;
       g.score += gained; g.popAcc = (g.popAcc || 0) + gained;
+      if (g.mascot) g.peerScore = g.mascotFinal * Math.min(1, el / GAME_MS);
       // 웃으면 데미지 이펙트: 화면이 붉게 번쩍이고 -숫자가 떠오른다 (상대에게도 보인다)
       if (rel > 0.25 && g.popAcc >= 2 && now - (g.lastPop || 0) > 300) {
         spawnHit(now, g.popAcc);
@@ -902,7 +953,7 @@
       if (cl > (g.crackLvl || 0)) { g.crackLvl = cl; addCrack(); }
       if (now - g.lastSend > 200) { g.lastSend = now; sendMsg({ t: "score", s: g.score }); }
       const names = ` · 내 필터 ${FILTERS[state.filterId].name}` + (g.peerSeq ? ` · 상대 필터 ${FILTERS[g.peerSeq[step % g.peerSeq.length]].name}` : "");
-      setMsg("웃음을 참아요!", `내 웃음 점수 ${fmt(g.score, 0)}` + (g.solo ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + names + roomText(now));
+      setMsg("웃음을 참아요!", `내 웃음 점수 ${fmt(g.score, 0)}` + (g.solo && !g.mascot ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + names + roomText(now));
       setBar(el / GAME_MS);
       $("sMe").style.width = Math.min(100, g.score / HP_MAX * 100) + "%";
       $("sOpp").style.width = Math.min(100, g.peerScore / HP_MAX * 100) + "%";
@@ -913,14 +964,37 @@
   setInterval(gameTick, 50);
 
   $("readyBtn").addEventListener("click", () => { unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
-  $("againBtn").addEventListener("click", () => { unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
+  $("againBtn").addEventListener("click", nextGame);
   $("soloBtn").addEventListener("click", () => { unlockAudio(); beginRound(true, makeSeqs()[0], null, "laugh", 1); });
   $("soloEatBtn").addEventListener("click", () => { unlockAudio(); beginRound(true, makeSeqs()[0], null, "eat", Math.floor(Math.random() * 1e9)); });
-  $("chatBtn").addEventListener("click", () => { g.note = "(데모) 여기서 비디오챗으로 넘어갑니다. 결제는 아직 연결 안 됨"; });
+  $("chatBtn").addEventListener("click", () => $("paySheet").classList.add("show"));
+  $("payNo").addEventListener("click", () => $("paySheet").classList.remove("show"));
+  $("payOk").addEventListener("click", () => { $("paySheet").classList.remove("show"); sendMsg({ t: "chat" }); enterChat("Video chat connected"); });
   document.querySelectorAll("#emojiRow button").forEach((b) => b.addEventListener("click", () => {
     sendMsg({ t: "emoji", e: b.dataset.e });
     floatEmoji("remoteFx", b.dataset.e);
   }));
+
+  // ---------- 아주주 (임시 그림) ----------
+  const mc = $("mascot"), mctx = mc.getContext("2d");
+  mc.width = 480; mc.height = 480;
+  function drawMascot() {
+    if ($("remoteCell").classList.contains("mascot")) {
+      const t = performance.now() / 1000, bob = Math.sin(t * 2) * 6;
+      mctx.fillStyle = "#0f1411"; mctx.fillRect(0, 0, 480, 480);
+      mctx.fillStyle = "#00f59e"; mctx.beginPath(); mctx.arc(240, 250 + bob, 135, 0, 6.283); mctx.fill();
+      const blink = (t % 3.2) < 0.15 ? 0.15 : 1;
+      for (const ex of [190, 290]) {
+        mctx.fillStyle = "#fff"; mctx.beginPath(); mctx.ellipse(ex, 225 + bob, 30, 30 * blink, 0, 0, 6.283); mctx.fill();
+        mctx.fillStyle = "#06231a"; mctx.beginPath(); mctx.arc(ex + Math.sin(t) * 6, 225 + bob, 12 * blink, 0, 6.283); mctx.fill();
+      }
+      const eating = g.game === "eat" && g.phase === "play", open = eating ? 8 + 22 * Math.abs(Math.sin(t * 3)) : 6;
+      mctx.fillStyle = "#06231a"; mctx.beginPath(); mctx.ellipse(240, 305 + bob, 40, open, 0, 0, 6.283); mctx.fill();
+      mctx.fillStyle = "#06231a"; mctx.font = "bold 20px system-ui, sans-serif"; mctx.textAlign = "center"; mctx.fillText("Ajuju", 240, 440);
+    }
+    requestAnimationFrame(drawMascot);
+  }
+  drawMascot();
 
   // ---------- 고진감래 이모지 그리기 ----------
   function drawTargets() {
@@ -1309,7 +1383,9 @@
     copyText($("report").value, "보고서를 복사했습니다.");
   });
 
-  claimSlot(0);
+  // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
+  window.__azar = { g, state, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat };
+  if (!/nopeer/.test(location.search)) claimSlot(0);
   startCamera();
 </script>
 </body>
