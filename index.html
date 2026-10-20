@@ -173,7 +173,7 @@
   </section>
 
   <section class="card" id="gameCard" aria-labelledby="sg">
-    <h2 id="sg">웃음 참기 (30초)</h2>
+    <h2 id="sg">Crack Up</h2>
     <p class="small" id="gHint">웃을수록 에너지가 닳아요. 에너지가 먼저 바닥나면 바로 지고, 30초를 버티면 점수가 더 낮은 사람이 이겨요.</p>
     <div class="gmsg" id="gMsg">상대를 기다리는 중...</div>
     <div class="gbar"><span id="gBar"></span></div>
@@ -817,7 +817,7 @@
     $("remoteCell").classList.add("has-stream", "mascot");
     beginRound(true, makeSeqs()[0], null, game, Math.floor(Math.random() * 1e9));
     g.opp = "mascot"; g.mascot = true; g.mascotFinal = game === "eat" ? 70 : 45;
-    chip("chipLink", "ok", "Ajuju");
+    chip("chipLink", "ok", "Azuzu");
   }
 
   function onGameMsg(d) {
@@ -859,7 +859,7 @@
   }
   function setGameLabels(game) {
     const eat = game === "eat";
-    $("sg").textContent = (eat ? "고진감래" : "웃음 참기") + " (30초)";
+    $("sg").textContent = eat ? "Yum or Yuck" : "Crack Up";
     $("gHint").textContent = eat ? "이모지에 입을 대고 입을 열었다 닫아서 먹어요. 음식은 +10, 똥과 해골은 -25! 점수가 높은 사람이 이겨요." : "웃을수록 에너지가 닳아요. 에너지가 먼저 바닥나면 바로 지고, 30초를 버티면 점수가 더 낮은 사람이 이겨요.";
     $("lblMe").textContent = eat ? "내 점수" : "내 웃음 점수";
     $("lblOpp").textContent = eat ? "상대 점수" : "상대 웃음 점수";
@@ -990,7 +990,7 @@
       }
       const eating = g.game === "eat" && g.phase === "play", open = eating ? 8 + 22 * Math.abs(Math.sin(t * 3)) : 6;
       mctx.fillStyle = "#06231a"; mctx.beginPath(); mctx.ellipse(240, 305 + bob, 40, open, 0, 0, 6.283); mctx.fill();
-      mctx.fillStyle = "#06231a"; mctx.font = "bold 20px system-ui, sans-serif"; mctx.textAlign = "center"; mctx.fillText("Ajuju", 240, 440);
+      mctx.fillStyle = "#06231a"; mctx.font = "bold 20px system-ui, sans-serif"; mctx.textAlign = "center"; mctx.fillText("Azuzu", 240, 440);
     }
     requestAnimationFrame(drawMascot);
   }
