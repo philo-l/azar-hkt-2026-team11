@@ -171,15 +171,16 @@
 
   <section class="card" id="gameCard" aria-labelledby="sg">
     <h2 id="sg">웃음 참기 (30초)</h2>
-    <p class="small">웃을수록 에너지가 닳아요. 에너지가 먼저 바닥나면 바로 지고, 30초를 버티면 점수가 더 낮은 사람이 이겨요.</p>
+    <p class="small" id="gHint">웃을수록 에너지가 닳아요. 에너지가 먼저 바닥나면 바로 지고, 30초를 버티면 점수가 더 낮은 사람이 이겨요.</p>
     <div class="gmsg" id="gMsg">상대를 기다리는 중...</div>
     <div class="gbar"><span id="gBar"></span></div>
-    <div class="small">내 웃음 점수</div><div class="gbar"><span id="sMe" style="background:#ff6b6b"></span></div>
-    <div class="small">상대 웃음 점수</div><div class="gbar"><span id="sOpp" style="background:#ffb020"></span></div>
+    <div class="small" id="lblMe">내 웃음 점수</div><div class="gbar"><span id="sMe" style="background:#ff6b6b"></span></div>
+    <div class="small" id="lblOpp">상대 웃음 점수</div><div class="gbar"><span id="sOpp" style="background:#ffb020"></span></div>
     <p class="small" id="gSub"></p>
     <div class="row" style="margin-top:12px">
       <button id="readyBtn" class="primary" type="button" disabled>연결 기다리는 중</button>
-      <button id="soloBtn" class="ghost" type="button" disabled>혼자 해보기</button>
+      <button id="soloBtn" class="ghost" type="button" disabled>혼자 해보기: 웃음 참기</button>
+      <button id="soloEatBtn" class="ghost" type="button" disabled>혼자 해보기: 고진감래</button>
     </div>
     <div id="afterRow" class="row" style="margin-top:12px" hidden>
       <button id="chatBtn" class="primary" type="button">이 사람과 비디오챗으로</button>
@@ -668,6 +669,7 @@
     rb.disabled = !linked() || playing() || g.myReady;
     rb.textContent = !linked() ? "연결 기다리는 중" : g.myReady ? "상대 기다리는 중..." : "준비";
     $("soloBtn").disabled = playing() || !state.landmarker;
+    $("soloEatBtn").disabled = playing() || !state.landmarker;
     $("afterRow").hidden = g.phase !== "reaction";
     $("emojiRow").hidden = g.phase !== "reaction";
     $("againBtn").disabled = !linked() || g.myReady;
@@ -705,20 +707,25 @@
     if (g.myReady && g.peerReady && isHost() && !playing()) {
       // 두 사람에게 서로 다른 필터를 나눠준다 (호스트가 정해서 알려준다)
       const [a, b] = makeSeqs();
-      sendMsg({ t: "go", seq: [a, b] });
-      beginRound(false, a, b);
+      const game = g.lastGame ? (g.lastGame === "laugh" ? "eat" : "laugh") : (Math.random() < 0.5 ? "laugh" : "eat");
+      const seed = Math.floor(Math.random() * 1e9);
+      sendMsg({ t: "go", seq: [a, b], game, seed });
+      beginRound(false, a, b, game, seed);
     }
   }
 
-  function beginRound(solo, mySeq, peerSeq) {
+  function beginRound(solo, mySeq, peerSeq, game = "laugh", seed = 1) {
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     const now = performance.now();
     Object.assign(g, { phase: "countdown", solo, myReady: false, peerReady: false, playAt: now + COUNT_MS, roomEnd: now + ROOM_MS,
       score: 0, peerScore: 0, lastT: 0, lastSend: 0, crackLvl: 0, popAcc: 0, lastPop: 0, myFinal: null, peerFinal: null,
-      finalTimer: null, timeUpDone: false, note: "", mySeq, peerSeq, myKO: false, peerKO: false, koTimer: null });
+      finalTimer: null, timeUpDone: false, note: "", mySeq, peerSeq, myKO: false, peerKO: false, koTimer: null,
+      game, seed, lastGame: game, eaten: new Set(), mouthOpen: false, needClose: false, openTarget: null, openAt: 0 });
+    state.eatTargets = [];
+    setGameLabels(game);
     state.filterStage = -1; setVoice(null); state.voiceFor = null;
     Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0;
-    if (!state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
+    if (game === "laugh" && !state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
     setLive(true);
     log(solo ? "혼자 해보기 시작" : "게임 시작");
     ui();
@@ -741,14 +748,16 @@
     if (g.phase !== "play" || !g.timeUpDone || g.peerFinal == null) return;
     g.peerScore = g.peerFinal;
     const diff = g.myFinal - g.peerFinal;
-    finish(Math.abs(diff) < SCORE_TIE ? "draw" : diff < 0 ? "win" : "lose");
+    const better = g.game === "eat" ? -diff : diff;   // 웃음 참기는 낮을수록, 고진감래는 높을수록 이긴다
+    finish(Math.abs(diff) < SCORE_TIE ? "draw" : better < 0 ? "win" : "lose");
   }
   const RESULT = { ko_lose: "에너지가 다 닳았어요! 졌어요!", ko_win: "이겼어요! 상대 에너지가 바닥났어요", win: "이겼어요! 덜 웃었어요", lose: "졌어요! 더 많이 웃었어요", draw: "무승부", survive: "끝까지 해냈어요!", nopeer: "상대 결과를 받지 못했어요" };
+  const RESULT_EAT = { win: "이겼어요! 더 많이 먹었어요", lose: "졌어요! 먹은 게 적어요", draw: "무승부", survive: "끝! 혼자서도 해냈어요", nopeer: "상대 결과를 받지 못했어요" };
   function finish(r) {
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
-    g.phase = "reaction"; state.filterStage = -1; setVoice(null); state.voiceFor = null;
-    g.resultMsg = RESULT[r];
-    g.resultSub = `내 웃음 점수 ${fmt(g.score, 0)}` + (g.solo || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
+    g.phase = "reaction"; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
+    g.resultMsg = (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
+    g.resultSub = `${g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + (g.solo || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
     setBar(1);
     log("결과: " + r + " / 내 점수 " + fmt(g.score, 0));
     ui();
@@ -770,13 +779,83 @@
   function onGameMsg(d) {
     switch (d.t) {
       case "ready": g.peerReady = true; checkStart(); return true;
-      case "go": if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0]); return true;
+      case "go": if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0], d.game || "laugh", d.seed || 1); return true;
       case "score": g.peerScore = d.s; return true;
       case "ko": g.peerKO = true; if (g.phase === "play" && !g.myKO) finish("ko_win"); return true;
       case "final": g.peerFinal = d.gauge; tryFinal(); return true;
       case "emoji": floatEmoji("localFx", d.e); return true;
     }
     return false;
+  }
+
+  // ---------- 고진감래 ----------
+  // 이모지가 2~3개씩 떠오르고, 얼굴을 움직여 입을 이모지에 댄 뒤 입을 열었다 닫으면 먹는다. 음식은 점수, 똥과 해골은 감점(음식보다 크다).
+  // 이모지 순서와 위치는 호스트가 정한 seed로 두 사람에게 똑같이 만든다(R16).
+  const FOOD = ["🍬", "🍫", "🍰", "🍩", "🍪"], BAD = ["💩", "💀"];
+  const SPAWN_MS = 1100, LIFE_MS = 2800, OFFSET_MS = 600, EAT_PTS = 10, BAD_PTS = -25, EAT_MAX = 150;
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function targetAt(k) {
+    const r = rng((g.seed ^ Math.imul(k + 1, 2654435761)) >>> 0);
+    const bad = r() < 0.3;
+    return { k, bad, ch: bad ? BAD[Math.floor(r() * BAD.length)] : FOOD[Math.floor(r() * FOOD.length)], pts: bad ? BAD_PTS : EAT_PTS, x: 0.2 + 0.6 * r(), y: 0.22 + 0.56 * r() };
+  }
+  function activeTargets(el) {
+    const out = [], k1 = Math.floor((el - OFFSET_MS) / SPAWN_MS), k0 = Math.max(0, Math.floor((el - OFFSET_MS - LIFE_MS) / SPAWN_MS));
+    for (let k = k0; k <= k1; k++) {
+      const t0 = OFFSET_MS + k * SPAWN_MS;
+      if (k < 0 || el < t0 || el >= t0 + LIFE_MS || t0 > GAME_MS - 800 || g.eaten.has(k)) continue;
+      out.push(Object.assign(targetAt(k), { life: 1 - (el - t0) / LIFE_MS }));
+    }
+    return out;
+  }
+  function setGameLabels(game) {
+    const eat = game === "eat";
+    $("sg").textContent = (eat ? "고진감래" : "웃음 참기") + " (30초)";
+    $("gHint").textContent = eat ? "이모지에 입을 대고 입을 열었다 닫아서 먹어요. 음식은 +10, 똥과 해골은 -25! 점수가 높은 사람이 이겨요." : "웃을수록 에너지가 닳아요. 에너지가 먼저 바닥나면 바로 지고, 30초를 버티면 점수가 더 낮은 사람이 이겨요.";
+    $("lblMe").textContent = eat ? "내 점수" : "내 웃음 점수";
+    $("lblOpp").textContent = eat ? "상대 점수" : "상대 웃음 점수";
+    $("sMe").style.background = eat ? "#12b76a" : "#ff6b6b";
+    $("sOpp").style.background = eat ? "#7dd3a8" : "#ffb020";
+  }
+  function playEat(now, el) {
+    const v = state.values, vid = $("localVideo");
+    const c = v && vid.videoWidth ? toComp(v, vid) : null;
+    const act = activeTargets(el);
+    state.eatTargets = act;
+    const jaw = v ? v.jaw : 0;
+    if (c) {
+      const R = CW * 0.14, dist = (t) => Math.hypot((t.x - c.M[0]) * CW, (t.y - c.M[1]) * CW);
+      if (g.needClose) { if (jaw < 0.15) g.needClose = false; }
+      else if (!g.mouthOpen && jaw > 0.35) {
+        g.mouthOpen = true; g.openAt = now;
+        let best = null, bd = 1e9;
+        for (const t of act) { const d = dist(t); if (d < R && d < bd) { best = t; bd = d; } }
+        g.openTarget = best ? best.k : null;
+      } else if (g.mouthOpen) {
+        if (jaw < 0.15) {
+          g.mouthOpen = false;
+          const t = g.openTarget == null ? null : act.find((a) => a.k === g.openTarget);
+          g.openTarget = null;
+          if (t && dist(t) < R * 1.4) eatTarget(now, t);
+        } else if (now - g.openAt > 1500) { g.mouthOpen = false; g.needClose = true; g.openTarget = null; }   // 입을 계속 벌려두는 건 인정 안 함
+      }
+    }
+    if (now - g.lastSend > 200) { g.lastSend = now; sendMsg({ t: "score", s: g.score }); }
+    setMsg("입을 열었다 닫아서 먹어요!", `내 점수 ${fmt(g.score, 0)}` + (g.solo ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
+    setBar(el / GAME_MS);
+    $("sMe").style.width = Math.min(100, g.score / EAT_MAX * 100) + "%";
+    $("sOpp").style.width = Math.min(100, g.peerScore / EAT_MAX * 100) + "%";
+    if (el >= GAME_MS && !g.timeUpDone) onTimeUp();
+  }
+  function eatTarget(now, t) {
+    g.eaten.add(t.k);
+    g.score = Math.max(0, g.score + t.pts);
+    if (t.pts > 0) spawnHit(now, 6, { txt: "+" + t.pts, good: true });
+    else spawnHit(now, 14, { txt: String(t.pts) });
+    log((t.pts > 0 ? "먹었다 " : "으악 ") + t.ch + " " + t.pts);
   }
 
   let lastUi = 0;
@@ -794,13 +873,14 @@
       return;
     }
     if (g.phase === "countdown") {
-      setMsg(String(Math.max(1, Math.ceil((g.playAt - now) / 1000))), "무표정으로 가만히 있어요 (기준선 측정)" + roomText(now));
+      setMsg(String(Math.max(1, Math.ceil((g.playAt - now) / 1000))), (g.game === "eat" ? "얼굴을 움직여 입을 이모지에 대고, 입을 열었다 닫아서 먹어요!" : "무표정으로 가만히 있어요 (기준선 측정)") + roomText(now));
       setBar(0);
       if (now >= g.playAt) { g.phase = "play"; g.lastT = now; }
       return;
     }
     if (g.phase === "play") {
       const el = now - g.playAt, dt = now - g.lastT; g.lastT = now;
+      if (g.game === "eat") { playEat(now, el); return; }
       if (g.myKO) { setMsg("KO!", "에너지가 다 닳았어요..."); return; }
       const step = Math.floor(el / STEP_MS);
       state.filterStage = 0;
@@ -834,12 +914,30 @@
 
   $("readyBtn").addEventListener("click", () => { unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
   $("againBtn").addEventListener("click", () => { unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
-  $("soloBtn").addEventListener("click", () => { unlockAudio(); beginRound(true, makeSeqs()[0], null); });
+  $("soloBtn").addEventListener("click", () => { unlockAudio(); beginRound(true, makeSeqs()[0], null, "laugh", 1); });
+  $("soloEatBtn").addEventListener("click", () => { unlockAudio(); beginRound(true, makeSeqs()[0], null, "eat", Math.floor(Math.random() * 1e9)); });
   $("chatBtn").addEventListener("click", () => { g.note = "(데모) 여기서 비디오챗으로 넘어갑니다. 결제는 아직 연결 안 됨"; });
   document.querySelectorAll("#emojiRow button").forEach((b) => b.addEventListener("click", () => {
     sendMsg({ t: "emoji", e: b.dataset.e });
     floatEmoji("remoteFx", b.dataset.e);
   }));
+
+  // ---------- 고진감래 이모지 그리기 ----------
+  function drawTargets() {
+    const list = state.eatTargets || [];
+    if (!list.length) return;
+    cctx.textAlign = "center"; cctx.textBaseline = "middle";
+    const pulse = 1 + 0.07 * Math.sin(performance.now() / 120);
+    for (const t of list) {
+      const x = t.x * CW, y = t.y * CW;
+      cctx.globalAlpha = t.life < 0.2 ? t.life / 0.2 : 1;
+      cctx.font = `${Math.round(CW * 0.15 * pulse)}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+      cctx.fillText(t.ch, x, y);
+      cctx.beginPath(); cctx.arc(x, y, CW * 0.1, -Math.PI / 2, -Math.PI / 2 + 6.283 * t.life);
+      cctx.strokeStyle = t.bad ? "#ff4d4d" : "#ffffff"; cctx.lineWidth = 4; cctx.stroke();
+    }
+    cctx.globalAlpha = 1;
+  }
 
   // ---------- 데미지 이펙트 (격투 게임처럼) ----------
   // 맞을 때마다: 화면 흔들림, 붉은 번쩍임, 집중선, 충격파, 불꽃, 만화 같은 별 폭발과 숫자. 점수가 쌓이면 화면에 금이 가고 HP가 줄어든다.
@@ -851,7 +949,7 @@
     const c = state.lastC;
     return { x: (c ? c.F[0] : 0.5) * CW, y: (c ? c.F[1] : 0.5) * CW, w: (c ? c.fw : 0.5) * CW };
   }
-  function spawnHit(now, dmg) {
+  function spawnHit(now, dmg, opts = {}) {
     const fx = state.fx, c = state.lastC, f = faceBox();
     const pw = Math.min(1, dmg / 14);
     // 머리 위에 작게 뜬다
@@ -859,11 +957,11 @@
     const topX = (c ? c.T[0] : 0.5) * CW, topY = (c ? c.T[1] : 0.2) * CW;
     const cx = Math.max(r, Math.min(CW - r, topX + (Math.random() - 0.5) * f.w * 0.45));
     const cy = Math.max(58, topY - f.w * 0.2);
-    fx.bursts.push({ x: cx, y: cy, t: now, n: Math.max(1, Math.round(dmg)), rot: (Math.random() - 0.5) * 0.5, r });
+    fx.bursts.push({ x: cx, y: cy, t: now, n: Math.max(1, Math.round(dmg)), rot: (Math.random() - 0.5) * 0.5, r, txt: opts.txt, good: opts.good });
     fx.rings.push({ x: cx, y: cy, t: now });
     const n = Math.round(6 + 8 * pw);
     for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 70 + Math.random() * 90; fx.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: now }); }
-    fx.shake = Math.max(fx.shake, 0.6 + 0.4 * pw); fx.impact = 1; fx.lastHit = now; state.flash = 1;
+    if (!opts.good) { fx.shake = Math.max(fx.shake, 0.6 + 0.4 * pw); fx.impact = 1; fx.lastHit = now; state.flash = 1; }
   }
   function addCrack() {
     const f = faceBox(), rx = f.w * 0.6, ry = f.w * 0.8, lines = [];
@@ -937,12 +1035,13 @@
       const y = q.y - age * 50;
       cctx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
       starPath(q.x, y, q.r * k, q.rot);
-      cctx.fillStyle = "#ffe14d"; cctx.fill();
-      cctx.lineWidth = 6; cctx.strokeStyle = "#ff5a00"; cctx.stroke();
+      cctx.fillStyle = q.good ? "#8dffb8" : "#ffe14d"; cctx.fill();
+      cctx.lineWidth = 6; cctx.strokeStyle = q.good ? "#12b76a" : "#ff5a00"; cctx.stroke();
       cctx.save(); cctx.translate(q.x, y); cctx.rotate(q.rot * 0.6); cctx.scale(k, k);
       cctx.font = `italic 900 ${Math.max(24, Math.round(q.r * 0.95))}px "Apple SD Gothic Neo", system-ui, sans-serif`;
       cctx.lineWidth = 9; cctx.strokeStyle = "#1a1a1a"; cctx.lineJoin = "round";
-      cctx.strokeText("-" + q.n, 0, 2); cctx.fillStyle = "#fff"; cctx.fillText("-" + q.n, 0, 2);
+      const tx = q.txt || ("-" + q.n);
+      cctx.strokeText(tx, 0, 2); cctx.fillStyle = "#fff"; cctx.fillText(tx, 0, 2);
       cctx.restore();
       cctx.globalAlpha = 1;
     }
@@ -1161,6 +1260,7 @@
         cctx.drawImage(vid, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, CW, CW);
         cctx.restore();
       }
+      drawTargets();
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
     octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
