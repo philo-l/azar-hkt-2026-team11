@@ -146,6 +146,7 @@
       <span class="chip" id="chipCam" data-state="idle"><i></i><b>카메라</b> <span>대기</span></span>
       <span class="chip" id="chipModel" data-state="idle"><i></i><b>얼굴 인식</b> <span>대기</span></span>
       <span class="chip" id="chipFace" data-state="idle"><i></i><b>얼굴 감지</b> <span>-</span></span>
+      <span class="chip" id="chipMic" data-state="idle"><i></i><b>마이크</b> <span>대기</span></span>
     </div>
   </section>
 
@@ -297,10 +298,13 @@
       return;
     }
     try {
-      state.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false
-      });
+      const vc = { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } };
+      try {
+        state.stream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
+      } catch (e1) {
+        log("마이크 포함 요청 실패(" + e1.name + "), 카메라만 다시 요청합니다.");
+        state.stream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: false });
+      }
     } catch (e) {
       chip("chipCam", "bad", "카메라 실패: " + (e.name || "오류"));
       log("카메라 오류: " + e.name + " / " + e.message);
@@ -315,6 +319,7 @@
     $("localCell").classList.add("has-stream");
     chip("chipCam", "ok", state.camRes);
     log("카메라 시작: " + state.camRes);
+    connectMic();
     loadModel();
   }
 
@@ -623,6 +628,7 @@
     call.on("stream", (s) => {
       const rv = $("remoteVideo");
       rv.srcObject = s;
+      rv.muted = !state.audioUnlocked;
       rv.play().catch((e) => log("상대 영상 재생 실패: " + e.message));
       $("remoteCell").classList.add("has-stream");
       state.remoteStream = true;
@@ -641,6 +647,7 @@
   // 상대에게는 필터가 입혀진 이 캔버스 영상을 보낸다.
   state.out = comp.captureStream(30);
   state.filterStage = -1;
+  state.flash = 0; state.pops = [];
 
   const linked = () => !!(state.data && state.data.open);
   const sendMsg = (m) => { if (linked()) state.data.send(m); };
@@ -697,7 +704,7 @@
     Object.assign(g, { phase: "countdown", solo, myReady: false, peerReady: false, playAt: now + COUNT_MS, roomEnd: now + ROOM_MS,
       score: 0, peerScore: 0, lastT: 0, lastSend: 0, myFinal: null, peerFinal: null,
       finalTimer: null, timeUpDone: false, note: "", mySeq, peerSeq });
-    state.filterStage = -1;
+    state.filterStage = -1; setVoice(null); state.voiceFor = null;
     if (!state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
     log(solo ? "혼자 해보기 시작" : "게임 시작");
     ui();
@@ -719,7 +726,7 @@
   const RESULT = { win: "이겼어요! 덜 웃었어요", lose: "졌어요! 더 많이 웃었어요", draw: "무승부", survive: "끝까지 해냈어요!", nopeer: "상대 결과를 받지 못했어요" };
   function finish(r) {
     clearTimeout(g.finalTimer);
-    g.phase = "reaction"; state.filterStage = -1;
+    g.phase = "reaction"; state.filterStage = -1; setVoice(null); state.voiceFor = null;
     g.resultMsg = RESULT[r];
     g.resultSub = `내 웃음 점수 ${fmt(g.score, 0)}` + (g.solo || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
     setBar(1);
@@ -727,7 +734,7 @@
     ui();
   }
   function expire() {
-    g.phase = "expired"; state.filterStage = -1;
+    g.phase = "expired"; state.filterStage = -1; setVoice(null); state.voiceFor = null;
     log("방이 닫혔습니다.");
     ui();
   }
@@ -735,7 +742,7 @@
     if ((playing() || g.phase === "reaction") && !g.solo) {
       clearTimeout(g.finalTimer);
       g.phase = "idle"; g.note = "상대가 나갔어요.";
-      state.filterStage = -1;
+      state.filterStage = -1; setVoice(null); state.voiceFor = null;
     }
     g.myReady = false; g.peerReady = false; ui();
   }
@@ -776,11 +783,21 @@
       const step = Math.floor(el / STEP_MS);
       state.filterStage = 0;
       state.filterId = g.mySeq[step % g.mySeq.length];
+      if (state.voiceFor !== state.filterId) { state.voiceFor = state.filterId; setVoice(state.filterId); }
       const ramp = Math.min(1, (el % STEP_MS) / 500);
       state.filterLvl = (0.9 + 0.1 * Math.min(1, el / GAME_MS)) * (ramp * ramp * (3 - 2 * ramp));
       const v = state.values, base = state.baseline ? state.baseline.smile : 0;
       const rel = v ? Math.max(0, v.smile - base) : 0;
-      g.score += Math.max(0, rel - SMILE_DEAD) * SCORE_K * dt / 1000;
+      const gained = Math.max(0, rel - SMILE_DEAD) * SCORE_K * dt / 1000;
+      g.score += gained; g.popAcc = (g.popAcc || 0) + gained;
+      // 웃으면 데미지 이펙트: 화면이 붉게 번쩍이고 -숫자가 떠오른다 (상대에게도 보인다)
+      if (rel > 0.25) {
+        state.flash = 1;
+        if (g.popAcc >= 2 && now - (g.lastPop || 0) > 300) {
+          state.pops.push({ text: "-" + Math.round(g.popAcc), t: now, dx: (Math.random() - 0.5) * 0.3 });
+          g.popAcc = 0; g.lastPop = now;
+        }
+      }
       if (now - g.lastSend > 200) { g.lastSend = now; sendMsg({ t: "score", s: g.score }); }
       const names = ` · 내 필터 ${FILTERS[state.filterId].name}` + (g.peerSeq ? ` · 상대 필터 ${FILTERS[g.peerSeq[step % g.peerSeq.length]].name}` : "");
       setMsg("웃음을 참아요!", `내 웃음 점수 ${fmt(g.score, 0)}` + (g.solo ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + names + roomText(now));
@@ -792,14 +809,121 @@
   }
   setInterval(gameTick, 50);
 
-  $("readyBtn").addEventListener("click", () => { g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
-  $("againBtn").addEventListener("click", () => { g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
-  $("soloBtn").addEventListener("click", () => beginRound(true, makeSeqs()[0], null));
+  $("readyBtn").addEventListener("click", () => { unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
+  $("againBtn").addEventListener("click", () => { unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
+  $("soloBtn").addEventListener("click", () => { unlockAudio(); beginRound(true, makeSeqs()[0], null); });
   $("chatBtn").addEventListener("click", () => { g.note = "(데모) 여기서 비디오챗으로 넘어갑니다. 결제는 아직 연결 안 됨"; });
   document.querySelectorAll("#emojiRow button").forEach((b) => b.addEventListener("click", () => {
     sendMsg({ t: "emoji", e: b.dataset.e });
     floatEmoji("remoteFx", b.dataset.e);
   }));
+
+  // ---------- 데미지 이펙트 ----------
+  function drawDamage(c) {
+    const now = performance.now();
+    if (state.flash > 0) {
+      const gr = cctx.createRadialGradient(CW / 2, CW / 2, CW * 0.22, CW / 2, CW / 2, CW * 0.75);
+      gr.addColorStop(0, "rgba(255,0,0,0)");
+      gr.addColorStop(1, `rgba(255,0,0,${0.6 * state.flash})`);
+      cctx.fillStyle = gr; cctx.fillRect(0, 0, CW, CW);
+      state.flash = Math.max(0, state.flash - 0.04);
+    }
+    state.pops = state.pops.filter((q) => now - q.t < 900);
+    cctx.textAlign = "center"; cctx.textBaseline = "middle";
+    for (const q of state.pops) {
+      const age = (now - q.t) / 900;
+      const x = ((c ? c.F[0] : 0.5) + q.dx) * CW, y = (c ? c.F[1] : 0.5) * CW - CW * 0.2 - age * 70;
+      cctx.globalAlpha = 1 - age;
+      cctx.font = 'bold 46px "Apple Color Emoji","Segoe UI Emoji",sans-serif';
+      cctx.lineWidth = 6; cctx.strokeStyle = "#fff"; cctx.fillStyle = "#ff2d2d";
+      const t = "💥 " + q.text;
+      cctx.strokeText(t, x, y); cctx.fillText(t, x, y);
+    }
+    cctx.globalAlpha = 1;
+  }
+
+  // ---------- 목소리 변조 ----------
+  // 내 목소리를 바꿔서 상대에게 보낸다. 필터가 바뀔 때마다 목소리도 바뀐다. 웃음을 터뜨리려는 공격용.
+  const VOICES = [
+    { ratio: 0.55, ring: 0 },   // 왕입: 낮은 목소리
+    { ratio: 1.9, ring: 0 },    // 왕코: 높은 목소리
+    { ratio: 1.7, ring: 0 },    // 풍선 볼: 헬륨 목소리
+    { ratio: 1.35, ring: 28 },  // 짝눈: 외계인 떨림
+    { ratio: 0.5, ring: 0 },    // 쭉 턱: 아주 낮은 목소리
+    { ratio: 1, ring: 55 },     // 왕이마: 로봇
+    { ratio: 2.1, ring: 0 }     // 콩알: 다람쥐 목소리
+  ];
+  const WORKLET = `
+    class PitchShift extends AudioWorkletProcessor {
+      static get parameterDescriptors() { return [{ name: "ratio", defaultValue: 1, minValue: 0.25, maxValue: 4 }]; }
+      constructor() { super(); this.buf = new Float32Array(32768); this.w = 0; this.d = 0; this.win = 2400; }
+      process(inputs, outputs, params) {
+        const inp = inputs[0][0], out = outputs[0][0];
+        if (!out) return true;
+        const r = params.ratio[0], M = 32767, win = this.win;
+        for (let i = 0; i < out.length; i++) {
+          this.buf[this.w] = inp ? inp[i] : 0;
+          this.w = (this.w + 1) & M;
+          this.d += 1 - r;
+          if (this.d < 0) this.d += win; else if (this.d >= win) this.d -= win;
+          let d2 = this.d + win / 2; if (d2 >= win) d2 -= win;
+          const rd = (dl) => { const p = this.w - 1 - dl, i0 = Math.floor(p), f = p - i0; return this.buf[i0 & M] * (1 - f) + this.buf[(i0 + 1) & M] * f; };
+          const g1 = 0.5 - 0.5 * Math.cos(2 * Math.PI * this.d / win);
+          out[i] = rd(this.d) * g1 + rd(d2) * (1 - g1);
+        }
+        return true;
+      }
+    }
+    registerProcessor("pitch-shift", PitchShift);`;
+  const audio = { ctx: null, dest: null, mix: null, mic: null, pitch: null, wired: false };
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audio.ctx = new AC();
+    audio.mix = audio.ctx.createGain();
+    audio.dest = audio.ctx.createMediaStreamDestination();
+    audio.mix.connect(audio.dest);
+    // 통화 시작 전에 오디오 트랙을 미리 달아둔다
+    audio.dest.stream.getAudioTracks().forEach((t) => state.out.addTrack(t));
+    audio.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }))).then(() => {
+      const c = audio.ctx;
+      audio.pitch = new AudioWorkletNode(c, "pitch-shift");
+      audio.dry = c.createGain(); audio.ringG = c.createGain(); audio.ringOn = c.createGain();
+      audio.osc = c.createOscillator(); audio.osc.frequency.value = 40;
+      audio.ringG.gain.value = 0; audio.osc.connect(audio.ringG.gain); audio.osc.start();
+      audio.ringOn.gain.value = 0;
+      audio.pitch.connect(audio.dry); audio.dry.connect(audio.mix);
+      audio.pitch.connect(audio.ringG); audio.ringG.connect(audio.ringOn); audio.ringOn.connect(audio.mix);
+      wireMic();
+      log("목소리 변조 준비됨");
+    }).catch((e) => log("목소리 변조 실패: " + (e.message || e)));
+  } catch (e) { log("오디오를 쓸 수 없습니다: " + (e.message || e)); }
+
+  function wireMic() {
+    if (audio.mic && audio.pitch && !audio.wired) { audio.mic.connect(audio.pitch); audio.wired = true; }
+  }
+  function connectMic() {
+    const tracks = state.stream ? state.stream.getAudioTracks() : [];
+    if (!tracks.length || !audio.ctx) { chip("chipMic", "bad", "마이크 없음"); log("마이크가 없어 목소리 변조가 꺼집니다."); return; }
+    audio.mic = audio.ctx.createMediaStreamSource(new MediaStream(tracks));
+    wireMic();
+    chip("chipMic", "ok", "켜짐");
+  }
+  function setVoice(id) {
+    if (!audio.pitch) return;
+    const v = id == null ? { ratio: 1, ring: 0 } : VOICES[id % VOICES.length];
+    audio.pitch.parameters.get("ratio").value = v.ratio;
+    audio.dry.gain.value = v.ring ? 0 : 1;
+    audio.ringOn.gain.value = v.ring ? 1.2 : 0;
+    if (v.ring) audio.osc.frequency.value = v.ring;
+  }
+  // 브라우저는 사용자가 누르기 전에는 소리를 못 켜게 한다. 준비 버튼을 누를 때 켠다.
+  function unlockAudio() {
+    state.audioUnlocked = true;
+    if (audio.ctx && audio.ctx.state !== "running") audio.ctx.resume();
+    const rv = $("remoteVideo");
+    rv.muted = false;
+    rv.play().catch(() => {});
+  }
 
   // ---------- 필터: WebGL로 얼굴 부위를 따로 변형한다 ----------
   // 3~5초마다 필터가 바뀌고, 표정(입 벌림, 미소, 깜빡임)에 따라 변형이 커진다. 변형은 얼굴 타원 안쪽에서만 적용되고 배경은 그대로다.
@@ -902,7 +1026,8 @@
       const c = state.values && state.filterStage >= 0 ? toComp(state.values, vid) : null;
       if (GU) {
         renderGL(vid, c, state.filterId, state.filterLvl || 0, state.values);
-        cctx.drawImage(glc, 0, 0);
+        const hit = state.flash > 0.7;
+        cctx.drawImage(glc, hit ? (Math.random() - 0.5) * 10 : 0, hit ? (Math.random() - 0.5) * 10 : 0);
       } else {
         const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
         cctx.save();
@@ -910,6 +1035,7 @@
         cctx.drawImage(vid, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, CW, CW);
         cctx.restore();
       }
+      drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
     requestAnimationFrame(drawComp);
   }
