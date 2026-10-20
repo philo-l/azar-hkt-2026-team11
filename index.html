@@ -809,9 +809,9 @@
   const LVL = [0.4, 0.7, 1.0];
   const FILTERS = [
     { name: "빵빵 얼굴", warp: (c, l) => ({ p: [[c.fx, c.fy, c.fw * 0.85, 0.9 * l]] }) },
-    { name: "납작 얼굴", warp: (c, l) => ({ sc: [1 + 0.5 * l, 1], sp: [c.fx, c.fy] }) },
+    { name: "납작 얼굴", warp: (c, l) => ({ sc: [1 + 0.5 * l, 1], sp: [c.fx, c.fy], sr: c.fw * 0.95 }) },
     { name: "왕눈이", warp: (c, l) => ({ p: [[c.ax, c.ay, c.fw * 0.3, 0.9 * l], [c.bx, c.by, c.fw * 0.3, 0.9 * l]] }) },
-    { name: "길쭉 얼굴", warp: (c, l) => ({ sc: [1, 1 + 0.5 * l], sp: [c.fx, c.fy] }) },
+    { name: "길쭉 얼굴", warp: (c, l) => ({ sc: [1, 1 + 0.5 * l], sp: [c.fx, c.fy], sr: c.fw * 1.1 }) },
     { name: "콩알 얼굴", warp: (c, l) => ({ p: [[c.fx, c.fy, c.fw * 0.95, -0.9 * l]] }) }
   ];
 
@@ -825,9 +825,10 @@
       const prog = gl.createProgram();
       gl.attachShader(prog, mk(gl.VERTEX_SHADER, "attribute vec2 a; varying vec2 vUv; void main(){ vUv = vec2(a.x*0.5+0.5, 0.5-a.y*0.5); gl_Position = vec4(a,0.0,1.0); }"));
       gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, `precision mediump float;
-        varying vec2 vUv; uniform sampler2D tex; uniform vec2 crop, off, sc, sp, p0, p1; uniform vec2 q0, q1;
+        varying vec2 vUv; uniform sampler2D tex; uniform vec2 crop, off, sc, sp, p0, p1; uniform vec2 q0, q1; uniform float sr;
         void main(){
-          vec2 uv = sp + (vUv - sp) / sc;
+          float wt = 1.0 - smoothstep(0.55 * sr, sr, length(vUv - sp));
+          vec2 uv = sp + (vUv - sp) / mix(vec2(1.0), sc, wt);
           vec2 d = uv - p0; float t = length(d) / q0.x;
           if (t < 1.0) uv = p0 + d * (1.0 - q0.y * pow(1.0 - t, 2.0));
           d = uv - p1; t = length(d) / q1.x;
@@ -851,7 +852,7 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       GU = {};
-      for (const n of ["crop", "off", "sc", "sp", "p0", "p1", "q0", "q1"]) GU[n] = gl.getUniformLocation(prog, n);
+      for (const n of ["crop", "off", "sc", "sp", "sr", "p0", "p1", "q0", "q1"]) GU[n] = gl.getUniformLocation(prog, n);
       log("WebGL 필터 준비됨");
     } catch (e) { GU = null; log("WebGL 필터 실패, 변형 없이 진행: " + (e.message || e)); }
   } else log("WebGL을 쓸 수 없어 변형 필터가 꺼집니다.");
@@ -878,7 +879,7 @@
     const sc = w.sc || [1, 1], sp = w.sp || [0.5, 0.5];
     const p = w.p || [], z = [0.5, 0.5, 0.5, 0];
     const p0 = p[0] || z, p1 = p[1] || z;
-    gl.uniform2f(GU.sc, sc[0], sc[1]); gl.uniform2f(GU.sp, sp[0], sp[1]);
+    gl.uniform2f(GU.sc, sc[0], sc[1]); gl.uniform2f(GU.sp, sp[0], sp[1]); gl.uniform1f(GU.sr, w.sr || 1.0);
     gl.uniform2f(GU.p0, p0[0], p0[1]); gl.uniform2f(GU.q0, p0[2], p0[3]);
     gl.uniform2f(GU.p1, p1[0], p1[1]); gl.uniform2f(GU.q1, p1[2], p1[3]);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -904,10 +905,8 @@
     const vid = $("localVideo");
     if (vid.videoWidth) {
       const stage = state.filterStage;
-      const jx = stage >= 2 ? (Math.random() - 0.5) * 8 : 0, jy = stage >= 2 ? (Math.random() - 0.5) * 8 : 0;
       const c = state.values && stage >= 0 ? toComp(state.values, vid) : null;
       cctx.save();
-      cctx.translate(jx, jy);
       if (GU) {
         renderGL(vid, c, state.filterId, stage);
         cctx.drawImage(glc, 0, 0);
