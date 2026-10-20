@@ -191,21 +191,14 @@
   </section>
 
   <section class="card" aria-labelledby="s3">
-    <h2 id="s3">2. 두 기기 연결</h2>
-    <p class="small"><b>링크 복사</b>를 눌러 상대에게 보내세요. 상대가 그 링크를 열고 카메라를 허용하면 자동으로 연결됩니다.</p>
+    <h2 id="s3">2. 두 기기 연결 (자동)</h2>
+    <p class="small">이 주소에 두 명이 들어오면 자동으로 1번, 2번 자리를 차지하고 서로 연결됩니다. 세 번째 사람은 누가 나갈 때까지 기다렸다가 자동으로 입장합니다.</p>
     <dl class="kv" style="margin-top:12px">
-      <dt>내 ID</dt><dd id="myId">연결 서버 접속 중...</dd>
+      <dt>내 자리</dt><dd id="myId">자리 확인 중...</dd>
     </dl>
-    <div class="row" style="margin-top:12px">
-      <button id="copyLinkBtn" class="ghost" type="button" disabled>링크 복사 (상대에게 보내기)</button>
-    </div>
-    <p class="small" style="margin-top:12px">링크가 안 열릴 때만: 상대 ID를 직접 입력해 연결할 수 있습니다.</p>
-    <div class="row" style="margin-top:8px">
-      <input id="remoteId" type="text" inputmode="text" autocomplete="off" autocapitalize="off" placeholder="상대 ID 붙여넣기" aria-label="상대 ID">
-      <button id="connectBtn" type="button" disabled>연결</button>
-    </div>
+    <div id="fullNotice" class="notice">지금 두 자리가 모두 차 있습니다. 누가 나가면 자동으로 입장합니다. 이 화면을 열어두고 기다려주세요.</div>
     <div class="chips" aria-live="polite">
-      <span class="chip" id="chipPeer" data-state="busy"><i></i><b>연결 서버</b> <span>접속 중</span></span>
+      <span class="chip" id="chipPeer" data-state="busy"><i></i><b>자리</b> <span>확인 중</span></span>
       <span class="chip" id="chipLink" data-state="idle"><i></i><b>상대와 연결</b> <span>대기</span></span>
       <span class="chip" id="chipRtt" data-state="idle"><i></i><b>지연</b> <span>-</span></span>
     </div>
@@ -287,7 +280,6 @@
     $("localCell").classList.add("has-stream");
     chip("chipCam", "ok", state.camRes);
     log("카메라 시작: " + state.camRes);
-    updateConnectButtons();
     loadModel();
   }
 
@@ -466,45 +458,30 @@
     }, 2000);
   }
 
-  // ---------- 두 기기 연결 ----------
-  function updateConnectButtons() {
-    const ready = !!state.stream && !!state.peer && !!state.myId;
-    $("connectBtn").disabled = !ready;
-    $("copyLinkBtn").disabled = !state.myId;
-    tryAutoConnect();
-  }
+  // ---------- 두 기기 연결: 서버 없이 고정 ID 2개로 자리를 나눈다 ----------
+  const SLOTS = ["azar-t11-play-slot-a", "azar-t11-play-slot-b"];
+  let slotIndex = -1, retryTimer = null, dialTimer = null;
 
-  // 링크(#ID)로 들어왔으면 카메라와 서버가 준비되는 대로 자동 연결
-  function tryAutoConnect() {
-    if (state.autoConnected || !state.stream || !state.peer || !state.myId) return;
-    const hash = location.hash.replace("#", "");
-    if (!hash || hash === state.myId) return;
-    state.autoConnected = true;
-    $("remoteId").value = hash;
-    log("링크의 상대에게 자동으로 연결합니다.");
-    connectToRemote();
-  }
-
-  function initPeer() {
+  function claimSlot(i = 0) {
     if (typeof Peer === "undefined") {
       chip("chipPeer", "bad", "라이브러리 로드 실패");
       $("myId").textContent = "PeerJS를 불러오지 못했습니다.";
       log("PeerJS 로드 실패 (인터넷 연결 확인)");
       return;
     }
-    const peer = new Peer();
+    clearTimeout(retryTimer);
+    if (state.peer) { try { state.peer.destroy(); } catch (e) {} }
+    state.peer = null; state.myId = null; slotIndex = -1;
+    const peer = new Peer(SLOTS[i]);
     state.peer = peer;
     peer.on("open", (id) => {
-      state.myId = id;
-      $("myId").textContent = id;
-      chip("chipPeer", "ok", "접속됨");
-      log("연결 서버 접속: " + id);
-      const hash = location.hash.replace("#", "");
-      if (hash && hash !== id) {
-        $("remoteId").value = hash;
-        log("링크에서 상대 ID를 가져왔습니다. 카메라를 시작한 뒤 연결을 누르세요.");
-      }
-      updateConnectButtons();
+      slotIndex = i; state.myId = id;
+      $("myId").textContent = `${i + 1}번 자리`;
+      $("fullNotice").classList.remove("show");
+      chip("chipPeer", "ok", `${i + 1}번 자리`);
+      chip("chipLink", "busy", "상대 기다리는 중");
+      log(`${i + 1}번 자리에 입장했습니다.`);
+      startDialing();
     });
     peer.on("connection", (c) => { log("상대가 연결을 요청했습니다."); setupData(c); });
     peer.on("call", (call) => {
@@ -512,19 +489,44 @@
       call.answer(state.stream || undefined);
       setupCall(call);
     });
-    peer.on("disconnected", () => { chip("chipPeer", "busy", "서버 연결 끊김"); log("연결 서버와 끊김"); });
+    peer.on("disconnected", () => {
+      chip("chipPeer", "busy", "서버 연결 끊김");
+      log("연결 서버와 끊김, 다시 접속 시도");
+      try { peer.reconnect(); } catch (e) {}
+    });
     peer.on("error", (err) => {
+      if (err.type === "unavailable-id") {
+        try { peer.destroy(); } catch (e) {}
+        if (i + 1 < SLOTS.length) { claimSlot(i + 1); return; }
+        $("myId").textContent = "자리가 꽉 참";
+        $("fullNotice").classList.add("show");
+        chip("chipPeer", "busy", "대기 중");
+        log("두 자리가 모두 찼습니다. 4초 뒤 다시 시도합니다.");
+        retryTimer = setTimeout(() => claimSlot(0), 4000);
+        return;
+      }
+      if (err.type === "peer-unavailable") { state.dialAt = 0; return; }
       chip("chipPeer", "bad", "오류: " + err.type);
       log("PeerJS 오류: " + err.type + " / " + err.message);
     });
   }
 
-  function connectToRemote() {
-    const id = $("remoteId").value.trim().replace(/^.*#/, "");
-    if (!id) { log("상대 ID를 입력하세요."); return; }
-    if (!state.stream) { log("먼저 카메라를 시작하세요."); return; }
+  // 2번 자리가 1번 자리로 걸어서 연결한다. 1번은 기다리기만 한다.
+  function startDialing() {
+    clearInterval(dialTimer);
+    if (slotIndex !== 1) return;
+    dialTimer = setInterval(() => {
+      if (!state.stream || !state.peer || !state.myId) return;
+      if (state.data && state.data.open) return;
+      if (Date.now() - (state.dialAt || 0) < 6000) return;
+      state.dialAt = Date.now();
+      connectToRemote(SLOTS[0]);
+    }, 2000);
+  }
+
+  function connectToRemote(id) {
     chip("chipLink", "busy", "연결 중");
-    log("연결 시도: " + id);
+    log("1번 자리에 연결 시도");
     const c = state.peer.connect(id, { reliable: true });
     setupData(c);
     const call = state.peer.call(id, state.stream);
@@ -561,7 +563,8 @@
     });
     c.on("close", () => {
       state.linkState = "끊김";
-      chip("chipLink", "bad", "끊김");
+      state.data = null; state.dialAt = 0;
+      chip("chipLink", "busy", "상대 기다리는 중");
       clearInterval(pingTimer); clearInterval(valuesTimer);
       log("데이터 연결 닫힘");
     });
@@ -602,6 +605,7 @@
       "기기와 브라우저: " + navigator.userAgent,
       `화면: ${innerWidth}x${innerHeight}, 배율 ${window.devicePixelRatio}`,
       "카메라: " + state.camRes,
+      "자리: " + (slotIndex >= 0 ? (slotIndex + 1) + "번" : "없음"),
       `얼굴 인식: ${state.delegate}, 현재 ${fps} fps, 얼굴 감지율 ${ratio}%`,
       "기준선: " + $("baseline").textContent,
       `상대와 연결: ${state.linkState}, 상대 영상 ${state.remoteStream ? "수신" : "미수신"}, 평균 지연 ${rtt}`,
@@ -615,18 +619,13 @@
 
   $("startBtn").addEventListener("click", startCamera);
   $("baseBtn").addEventListener("click", saveBaseline);
-  $("connectBtn").addEventListener("click", connectToRemote);
-  $("copyLinkBtn").addEventListener("click", () => {
-    const link = location.origin + location.pathname + "#" + state.myId;
-    copyText(link, "내 링크를 복사했습니다.");
-  });
   $("reportBtn").addEventListener("click", buildReport);
   $("copyReportBtn").addEventListener("click", () => {
     if (!$("report").value) buildReport();
     copyText($("report").value, "보고서를 복사했습니다.");
   });
 
-  initPeer();
+  claimSlot(0);
   startCamera();
 </script>
 </body>
