@@ -83,8 +83,16 @@
   }
   .cell video, .cell canvas {
     position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; transform: scaleX(-1);
+    object-fit: cover; transform: none;
   }
+  #localVideo { opacity: 0; }
+  #overlay { display: none; }
+  .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .pop { position: absolute; bottom: 8%; font-size: 48px; animation: rise 1.8s ease-out forwards; }
+  @keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-220px); opacity: 0; } }
+  .gmsg { font-size: 28px; font-weight: 800; line-height: 1.2; margin: 4px 0; }
+  .gbar { height: 10px; border-radius: 999px; background: #e7eae3; overflow: hidden; margin: 10px 0; }
+  .gbar span { display: block; height: 100%; width: 0; background: var(--accent); }
   .cell .tag {
     position: absolute; left: 12px; bottom: 12px;
     background: rgba(0,0,0,0.55); color: #fff;
@@ -146,14 +154,38 @@
       <div class="cell" id="localCell">
         <video id="localVideo" playsinline muted autoplay></video>
         <canvas id="overlay"></canvas>
+        <canvas id="comp"></canvas>
+        <div class="fx" id="localFx"></div>
         <div class="empty">카메라를 시작하면 내 얼굴이 여기에 보입니다.<br>점은 입 중심 위치입니다.</div>
         <span class="tag">나</span>
       </div>
       <div class="cell" id="remoteCell">
         <video id="remoteVideo" playsinline muted autoplay></video>
+        <div class="fx" id="remoteFx"></div>
         <div class="empty">2번에서 연결하면 상대 얼굴이 여기에 보입니다.</div>
         <span class="tag">상대</span>
       </div>
+    </div>
+  </section>
+
+  <section class="card" id="gameCard" aria-labelledby="sg">
+    <h2 id="sg">웃음 참기 (30초)</h2>
+    <div class="gmsg" id="gMsg">상대를 기다리는 중...</div>
+    <div class="gbar"><span id="gBar"></span></div>
+    <p class="small" id="gSub"></p>
+    <div class="row" style="margin-top:12px">
+      <button id="readyBtn" class="primary" type="button" disabled>연결 기다리는 중</button>
+      <button id="soloBtn" class="ghost" type="button" disabled>혼자 해보기</button>
+    </div>
+    <div id="afterRow" class="row" style="margin-top:12px" hidden>
+      <button id="chatBtn" class="primary" type="button">이 사람과 비디오챗으로</button>
+      <button id="againBtn" class="ghost" type="button">한 판 더</button>
+    </div>
+    <div id="emojiRow" class="row" style="margin-top:12px" hidden>
+      <button class="ghost" type="button" data-e="👏">👏</button>
+      <button class="ghost" type="button" data-e="😂">😂</button>
+      <button class="ghost" type="button" data-e="😭">😭</button>
+      <button class="ghost" type="button" data-e="🔥">🔥</button>
     </div>
   </section>
 
@@ -366,7 +398,9 @@
       change: state.change,
       mx: (upper.x + lower.x) / 2,
       my: (upper.y + lower.y) / 2,
-      fw: faceW
+      fw: faceW,
+      fhx: lm[10].x, fhy: lm[10].y,
+      e1x: lm[159].x, e1y: lm[159].y, e2x: lm[386].x, e2y: lm[386].y
     };
     state.values = v;
 
@@ -492,7 +526,7 @@
     peer.on("connection", (c) => { log("상대가 연결을 요청했습니다."); setupData(c); });
     peer.on("call", (call) => {
       log("상대의 영상 호출 수신");
-      call.answer(state.stream || undefined);
+      call.answer(state.out);
       setupCall(call);
     });
     peer.on("disconnected", () => {
@@ -535,7 +569,7 @@
     log("1번 자리에 연결 시도");
     const c = state.peer.connect(id, { reliable: true });
     setupData(c);
-    const call = state.peer.call(id, state.stream);
+    const call = state.peer.call(id, state.out);
     setupCall(call);
   }
 
@@ -544,6 +578,7 @@
     state.data = c;
     c.on("open", () => {
       state.linkState = "연결됨";
+      g.myReady = false; g.peerReady = false; ui();
       chip("chipLink", "ok", "연결됨");
       log("데이터 연결 열림");
       clearInterval(pingTimer); clearInterval(valuesTimer);
@@ -555,6 +590,7 @@
     });
     c.on("data", (d) => {
       if (!d) return;
+      if (onGameMsg(d)) return;
       if (d.t === "ping") { c.send({ t: "pong", ts: d.ts }); }
       else if (d.t === "pong") {
         const rtt = performance.now() - d.ts;
@@ -569,7 +605,7 @@
     });
     c.on("close", () => {
       state.linkState = "끊김";
-      state.data = null; state.dialAt = 0;
+      state.data = null; state.dialAt = 0; onLinkLost();
       chip("chipLink", "busy", "상대 기다리는 중");
       clearInterval(pingTimer); clearInterval(valuesTimer);
       log("데이터 연결 닫힘");
@@ -590,6 +626,218 @@
     call.on("close", () => { $("remoteCell").classList.remove("has-stream"); state.remoteStream = false; log("영상 연결 닫힘"); });
     call.on("error", (e) => log("영상 연결 오류: " + (e.message || e)));
   }
+
+  // ---------- 웃음 참기 (그레이박스) ----------
+  const GAME_MS = 30000, COUNT_MS = 3000, ROOM_MS = 60000;
+  const LAUGH_TH = 0.35, LAUGH_HOLD = 300, TIE_MS = 300, WINDOW_MS = 450;
+  const g = { phase: "idle", solo: false, myReady: false, peerReady: false, note: "" };
+  const comp = $("comp"), cctx = comp.getContext("2d"), CW = 480;
+  comp.width = CW; comp.height = CW;
+  // 상대에게는 필터가 입혀진 이 캔버스 영상을 보낸다.
+  state.out = comp.captureStream(30);
+  state.filterStage = -1;
+
+  const linked = () => !!(state.data && state.data.open);
+  const sendMsg = (m) => { if (linked()) state.data.send(m); };
+  const isHost = () => slotIndex === 0;
+  const playing = () => g.phase === "countdown" || g.phase === "play";
+  const setMsg = (m, sub) => { $("gMsg").textContent = m; $("gSub").textContent = sub || ""; };
+  const setBar = (p) => { $("gBar").style.width = Math.max(0, Math.min(1, p)) * 100 + "%"; };
+  const roomText = (now) => ` · 방 닫힘까지 ${Math.max(0, Math.ceil((g.roomEnd - now) / 1000))}초`;
+
+  function ui() {
+    const rb = $("readyBtn");
+    rb.disabled = !linked() || playing() || g.myReady;
+    rb.textContent = !linked() ? "연결 기다리는 중" : g.myReady ? "상대 기다리는 중..." : "준비";
+    $("soloBtn").disabled = playing() || !state.landmarker;
+    $("afterRow").hidden = g.phase !== "reaction";
+    $("emojiRow").hidden = g.phase !== "reaction";
+    $("againBtn").disabled = !linked() || g.myReady;
+    $("againBtn").textContent = g.myReady ? "상대 기다리는 중..." : "한 판 더";
+    $("chatBtn").disabled = !linked();
+  }
+
+  function floatEmoji(id, e) {
+    const el = document.createElement("span");
+    el.className = "pop"; el.textContent = e;
+    el.style.left = 10 + Math.random() * 70 + "%";
+    $(id).appendChild(el);
+    setTimeout(() => el.remove(), 1900);
+  }
+
+  function checkStart() {
+    if (g.myReady && g.peerReady && isHost() && !playing()) { sendMsg({ t: "go" }); beginRound(false); }
+  }
+
+  function beginRound(solo) {
+    clearTimeout(g.decideTimer); clearTimeout(g.finalTimer);
+    const now = performance.now();
+    Object.assign(g, { phase: "countdown", solo, myReady: false, peerReady: false, playAt: now + COUNT_MS, roomEnd: now + ROOM_MS,
+      gauge: 0, lastT: 0, overSince: 0, myLaugh: null, peerLaugh: null, myFinal: null, peerFinal: null,
+      decideTimer: null, finalTimer: null, timeUpDone: false, note: "" });
+    state.filterStage = -1;
+    if (!state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
+    log(solo ? "혼자 해보기 시작" : "게임 시작");
+    ui();
+  }
+
+  function onMyLaugh(t) {
+    g.myLaugh = { t, gauge: g.gauge };
+    sendMsg({ t: "laugh", at: t, gauge: g.gauge });
+    scheduleDecide();
+  }
+  function scheduleDecide() {
+    if (g.decideTimer) return;
+    g.decideTimer = setTimeout(decide, g.solo ? 0 : WINDOW_MS);
+  }
+  function decide() {
+    const my = g.myLaugh, peer = g.peerLaugh;
+    if (g.phase !== "play") return;
+    let r = "lose", why = "";
+    if (g.solo || (my && !peer)) r = "lose";
+    else if (!my && peer) r = "win";
+    else if (my && peer) {
+      const diff = my.t - peer.t;
+      if (Math.abs(diff) <= TIE_MS) {
+        r = my.gauge < peer.gauge ? "win" : my.gauge > peer.gauge ? "lose" : "draw";
+        why = "거의 동시에 웃어서 웃음 게이지로 가렸어요";
+      } else r = diff < 0 ? "lose" : "win";
+    }
+    finish(r, why);
+  }
+  function onTimeUp() {
+    g.timeUpDone = true; g.myFinal = g.gauge;
+    if (g.solo) { finish("survive"); return; }
+    sendMsg({ t: "final", gauge: g.gauge });
+    tryFinal();
+    g.finalTimer = setTimeout(() => { if (g.phase === "play") finish("nopeer"); }, 3000);
+  }
+  function tryFinal() {
+    if (g.phase !== "play" || !g.timeUpDone || g.peerFinal == null || g.decideTimer) return;
+    const r = g.myFinal < g.peerFinal ? "win" : g.myFinal > g.peerFinal ? "lose" : "draw";
+    finish(r, "둘 다 안 웃어서 웃음 게이지가 낮은 쪽이 이겼어요");
+  }
+  const RESULT = { win: "이겼어요!", lose: "웃어서 졌어요", draw: "무승부", survive: "30초 버텼어요!", nopeer: "상대 결과를 받지 못했어요" };
+  function finish(r, why) {
+    clearTimeout(g.decideTimer); clearTimeout(g.finalTimer);
+    g.phase = "reaction"; state.filterStage = -1;
+    g.resultMsg = RESULT[r];
+    g.resultSub = (why ? why + " · " : "") + `내 웃음 게이지 ${fmt(g.gauge)}`;
+    setBar(1);
+    log("결과: " + r + " / 게이지 " + fmt(g.gauge));
+    ui();
+  }
+  function expire() {
+    g.phase = "expired"; state.filterStage = -1;
+    log("방이 닫혔습니다.");
+    ui();
+  }
+  function onLinkLost() {
+    if ((playing() || g.phase === "reaction") && !g.solo) {
+      clearTimeout(g.decideTimer); clearTimeout(g.finalTimer);
+      g.phase = "idle"; g.note = "상대가 나갔어요.";
+      state.filterStage = -1;
+    }
+    g.myReady = false; g.peerReady = false; ui();
+  }
+
+  function onGameMsg(d) {
+    switch (d.t) {
+      case "ready": g.peerReady = true; checkStart(); return true;
+      case "go": if (!playing()) beginRound(false); return true;
+      case "laugh": g.peerLaugh = { t: d.at, gauge: d.gauge }; if (g.phase === "play") scheduleDecide(); return true;
+      case "final": g.peerFinal = d.gauge; tryFinal(); return true;
+      case "emoji": floatEmoji("localFx", d.e); return true;
+    }
+    return false;
+  }
+
+  let lastUi = 0;
+  function gameTick() {
+    const now = performance.now();
+    if (now - lastUi > 250) { lastUi = now; ui(); }
+    if (g.phase === "idle") {
+      setMsg(linked() ? "준비를 눌러주세요" : "상대를 기다리는 중...", g.note || (linked() ? "" : "혼자 해보기로도 테스트할 수 있어요"));
+      return;
+    }
+    if (g.phase === "expired") { setMsg("방이 닫혔어요", "다시 하려면 준비를 눌러주세요"); return; }
+    if (g.phase === "reaction") {
+      setMsg(g.resultMsg, g.resultSub + roomText(now) + (g.note ? " · " + g.note : ""));
+      if (now >= g.roomEnd) expire();
+      return;
+    }
+    if (g.phase === "countdown") {
+      setMsg(String(Math.max(1, Math.ceil((g.playAt - now) / 1000))), "무표정으로 가만히 있어요 (기준선 측정)" + roomText(now));
+      setBar(0);
+      if (now >= g.playAt) { g.phase = "play"; g.lastT = now; }
+      return;
+    }
+    if (g.phase === "play") {
+      const el = now - g.playAt;
+      state.filterStage = Math.min(2, Math.floor(el / 10000));
+      setMsg(g.myLaugh ? "웃었어요! 판정 중..." : "웃으면 져요!", `단계 ${state.filterStage + 1}/3 · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
+      setBar(el / GAME_MS);
+      const v = state.values, base = state.baseline ? state.baseline.smile : 0;
+      const rel = v ? Math.max(0, v.smile - base) : 0;
+      g.gauge += rel * (now - g.lastT) / 1000; g.lastT = now;
+      if (rel > LAUGH_TH) {
+        if (!g.overSince) g.overSince = now;
+        else if (now - g.overSince >= LAUGH_HOLD && !g.myLaugh) onMyLaugh(g.overSince - g.playAt);
+      } else g.overSince = 0;
+      if (el >= GAME_MS && !g.myLaugh && !g.timeUpDone && !g.decideTimer) onTimeUp();
+    }
+  }
+  setInterval(gameTick, 50);
+
+  $("readyBtn").addEventListener("click", () => { g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
+  $("againBtn").addEventListener("click", () => { g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
+  $("soloBtn").addEventListener("click", () => beginRound(true));
+  $("chatBtn").addEventListener("click", () => { g.note = "(데모) 여기서 비디오챗으로 넘어갑니다. 결제는 아직 연결 안 됨"; });
+  document.querySelectorAll("#emojiRow button").forEach((b) => b.addEventListener("click", () => {
+    sendMsg({ t: "emoji", e: b.dataset.e });
+    floatEmoji("remoteFx", b.dataset.e);
+  }));
+
+  // 카메라 영상을 정사각형으로 잘라 거울 모양으로 그리고, 필터를 입힌다. 이 캔버스가 상대에게 간다.
+  function drawFilters(v, stage, vid) {
+    const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
+    const P = (lx, ly) => ({ x: CW - (((lx * vw - (vw - side) / 2) / side) * CW), y: ((ly * vh - (vh - side) / 2) / side) * CW });
+    const fw = (v.fw * vw / side) * CW;
+    const top = P(v.fhx, v.fhy), a = P(v.e1x, v.e1y), b = P(v.e2x, v.e2y);
+    const [l, r] = a.x < b.x ? [a, b] : [b, a];
+    cctx.textAlign = "center"; cctx.textBaseline = "middle";
+    const emo = (t, x, y, sz) => { cctx.font = `${sz}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`; cctx.fillText(t, x, y); };
+    emo("🎩", top.x, top.y - fw * 0.28, fw * 0.55);
+    if (stage >= 1) {
+      cctx.lineWidth = Math.max(4, fw * 0.045); cctx.lineCap = "round"; cctx.strokeStyle = "#2b1d12";
+      const w = fw * 0.13, up = fw * 0.2, t = fw * 0.05;
+      cctx.beginPath(); cctx.moveTo(l.x - w, l.y - up + t); cctx.lineTo(l.x + w, l.y - up - t); cctx.stroke();
+      cctx.beginPath(); cctx.moveTo(r.x - w, r.y - up - t); cctx.lineTo(r.x + w, r.y - up + t); cctx.stroke();
+      emo("💧", l.x - w * 0.2, l.y + fw * 0.18, fw * 0.16);
+      emo("💧", r.x + w * 0.2, r.y + fw * 0.18, fw * 0.16);
+    }
+    if (stage >= 2) {
+      emo("😭", top.x - fw * 0.75, top.y + fw * 0.05, fw * 0.4);
+      emo("😭", top.x + fw * 0.75, top.y + fw * 0.05, fw * 0.4);
+      emo("💦", l.x - fw * 0.1, l.y + fw * 0.35, fw * 0.2);
+      emo("💦", r.x + fw * 0.1, r.y + fw * 0.35, fw * 0.2);
+    }
+  }
+  function drawComp() {
+    const vid = $("localVideo");
+    if (vid.videoWidth) {
+      const vw = vid.videoWidth, vh = vid.videoHeight, side = Math.min(vw, vh);
+      const stage = state.filterStage;
+      const jx = stage >= 2 ? (Math.random() - 0.5) * 8 : 0, jy = stage >= 2 ? (Math.random() - 0.5) * 8 : 0;
+      cctx.save();
+      cctx.translate(CW + jx, jy); cctx.scale(-1, 1);
+      cctx.drawImage(vid, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, CW, CW);
+      cctx.restore();
+      if (stage >= 0 && state.values) drawFilters(state.values, stage, vid);
+    }
+    requestAnimationFrame(drawComp);
+  }
+  drawComp();
 
   // ---------- 링크, 보고서 ----------
   async function copyText(text, okMsg) {
