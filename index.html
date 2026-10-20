@@ -460,6 +460,12 @@
 
   // ---------- 두 기기 연결: 서버 없이 고정 ID 2개로 자리를 나눈다 ----------
   const SLOTS = ["azar-t11-play-slot-a", "azar-t11-play-slot-b"];
+  // 다른 네트워크(LTE 등)끼리 연결하려면 TURN 중계 서버가 필요하다. 아래 공개 테스트용 서버는 불안정할 수 있다.
+  const ICE_SERVERS = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.relay.metered.ca:80" },
+    { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" }
+  ];
   let slotIndex = -1, retryTimer = null, dialTimer = null;
 
   function claimSlot(i = 0) {
@@ -472,7 +478,7 @@
     clearTimeout(retryTimer);
     if (state.peer) { try { state.peer.destroy(); } catch (e) {} }
     state.peer = null; state.myId = null; slotIndex = -1;
-    const peer = new Peer(SLOTS[i]);
+    const peer = new Peer(SLOTS[i], { config: { iceServers: ICE_SERVERS } });
     state.peer = peer;
     peer.on("open", (id) => {
       slotIndex = i; state.myId = id;
