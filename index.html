@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Azar Play 스모크 테스트</title>
+<style>
+  :root {
+    --bg: #f3f4ef;
+    --surface: #ffffff;
+    --ink: #17201b;
+    --muted: #5d6b63;
+    --line: #dde1d8;
+    --accent: #00f59e;
+    --accent-ink: #06231a;
+    --warn: #c2410c;
+    --bad: #b42318;
+    --stage: #0f1411;
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 8px 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  p { margin: 0; }
+  .lead { color: var(--muted); max-width: 60ch; }
+  section { margin-top: 20px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, input {
+    font: inherit;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    padding: 0 14px;
+  }
+  button {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+  button.ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #1d6fff; outline-offset: 2px; }
+  input[type="text"] { flex: 1 1 200px; background: #fff; color: var(--ink); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: #eceee8; font-size: 14px;
+  }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; background: #a3aca6; display: inline-block; }
+  .chip[data-state="ok"] i { background: #12b76a; }
+  .chip[data-state="busy"] i { background: #f79009; }
+  .chip[data-state="bad"] i { background: var(--bad); }
+
+  .notice { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fff4e5; color: #7a2e0e; display: none; }
+  .notice.show { display: block; }
+
+  .stage { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 760px) { .stage { grid-template-columns: 1fr 1fr; } }
+  .cell {
+    position: relative; aspect-ratio: 1 / 1; overflow: hidden;
+    border-radius: var(--radius); background: var(--stage);
+  }
+  .cell video, .cell canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1);
+  }
+  .cell .tag {
+    position: absolute; left: 12px; bottom: 12px;
+    background: rgba(0,0,0,0.55); color: #fff;
+    padding: 4px 10px; border-radius: 999px; font-size: 14px;
+  }
+  .cell .empty {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    color: #c9d2cc; text-align: center; padding: 24px; font-size: 15px;
+  }
+  .cell.has-stream .empty { display: none; }
+
+  .meters { display: grid; gap: 12px; margin-top: 4px; }
+  .meter-head { display: flex; justify-content: space-between; font-size: 15px; }
+  .meter-head output { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .meter { height: 10px; border-radius: 999px; background: #e7eae3; overflow: hidden; }
+  .meter span { display: block; height: 100%; width: 0; background: var(--accent); }
+  .meter.warm span { background: #ffb020; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 15px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .small { font-size: 14px; color: var(--muted); }
+  textarea {
+    width: 100%; min-height: 150px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px; resize: vertical;
+    background: #fbfbf9; color: var(--ink);
+  }
+  pre#log {
+    margin: 12px 0 0; max-height: 160px; overflow: auto; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #fbfbf9; border: 1px solid var(--line); border-radius: 12px; padding: 10px; white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Azar Play 스모크 테스트</h1>
+    <p class="lead">카메라, 얼굴 인식, 두 기기 연결이 이 기기와 브라우저에서 되는지 확인합니다. 아래 순서대로 눌러보고, 마지막의 결과 보고서를 복사해서 보내주세요.</p>
+  </header>
+
+  <div id="secureNotice" class="notice">이 주소는 HTTPS가 아니라서 브라우저가 카메라를 막을 수 있습니다. GitHub Pages 주소(https://로 시작)로 열어주세요.</div>
+
+  <section class="card" aria-labelledby="s1">
+    <h2 id="s1">1. 카메라와 얼굴 인식</h2>
+    <div class="row">
+      <button id="startBtn" class="primary" type="button">카메라 시작</button>
+      <button id="baseBtn" class="ghost" type="button" disabled>무표정 기준선 저장 (2초)</button>
+    </div>
+    <div class="chips" aria-live="polite">
+      <span class="chip" id="chipCam" data-state="idle"><i></i><b>카메라</b> <span>대기</span></span>
+      <span class="chip" id="chipModel" data-state="idle"><i></i><b>얼굴 인식</b> <span>대기</span></span>
+      <span class="chip" id="chipFace" data-state="idle"><i></i><b>얼굴 감지</b> <span>-</span></span>
+    </div>
+  </section>
+
+  <section aria-label="화면">
+    <div class="stage">
+      <div class="cell" id="localCell">
+        <video id="localVideo" playsinline muted autoplay></video>
+        <canvas id="overlay"></canvas>
+        <div class="empty">카메라를 시작하면 내 얼굴이 여기에 보입니다.<br>점은 입 중심 위치입니다.</div>
+        <span class="tag">나</span>
+      </div>
+      <div class="cell" id="remoteCell">
+        <video id="remoteVideo" playsinline muted autoplay></video>
+        <div class="empty">2번에서 연결하면 상대 얼굴이 여기에 보입니다.</div>
+        <span class="tag">상대</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="s2">
+    <h2 id="s2">얼굴 값</h2>
+    <div class="grid2">
+      <div class="meters">
+        <div>
+          <div class="meter-head"><span>미소</span><output id="vSmile">0.00</output></div>
+          <div class="meter"><span id="mSmile"></span></div>
+        </div>
+        <div>
+          <div class="meter-head"><span>입 벌림</span><output id="vJaw">0.00</output></div>
+          <div class="meter"><span id="mJaw"></span></div>
+        </div>
+        <div>
+          <div class="meter-head"><span>눈 깜빡임</span><output id="vBlink">0.00</output></div>
+          <div class="meter"><span id="mBlink"></span></div>
+        </div>
+        <div>
+          <div class="meter-head"><span>표정 변화량</span><output id="vChange">0.0</output></div>
+          <div class="meter warm"><span id="mChange"></span></div>
+        </div>
+      </div>
+      <dl class="kv">
+        <dt>상대 값</dt><dd id="remoteVals">-</dd>
+        <dt>입 위치</dt><dd id="mouthPos">-</dd>
+        <dt>얼굴 폭</dt><dd id="faceW">-</dd>
+        <dt>기준선</dt><dd id="baseline">미저장</dd>
+        <dt>기준선 대비 미소</dt><dd id="smileRel">-</dd>
+        <dt>인식 속도</dt><dd id="fps">-</dd>
+      </dl>
+    </div>
+    <p class="small" style="margin-top:12px">표정 변화량은 직전 프레임과 비교한 변화의 크기입니다. 가만히 있을 때와 표정을 바꿀 때 값이 얼마나 다른지 봐주세요.</p>
+  </section>
+
+  <section class="card" aria-labelledby="s3">
+    <h2 id="s3">2. 두 기기 연결</h2>
+    <p class="small">두 기기 모두 위 1번에서 카메라를 시작한 뒤, 한쪽의 링크를 다른 쪽에서 열거나 ID를 입력하세요.</p>
+    <dl class="kv" style="margin-top:12px">
+      <dt>내 ID</dt><dd id="myId">연결 서버 접속 중...</dd>
+    </dl>
+    <div class="row" style="margin-top:12px">
+      <button id="copyLinkBtn" class="ghost" type="button" disabled>내 링크 복사</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <input id="remoteId" type="text" inputmode="text" autocomplete="off" autocapitalize="off" placeholder="상대 ID 붙여넣기" aria-label="상대 ID">
+      <button id="connectBtn" type="button" disabled>연결</button>
+    </div>
+    <div class="chips" aria-live="polite">
+      <span class="chip" id="chipPeer" data-state="busy"><i></i><b>연결 서버</b> <span>접속 중</span></span>
+      <span class="chip" id="chipLink" data-state="idle"><i></i><b>상대와 연결</b> <span>대기</span></span>
+      <span class="chip" id="chipRtt" data-state="idle"><i></i><b>지연</b> <span>-</span></span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="s4">
+    <h2 id="s4">3. 결과 보고서</h2>
+    <div class="row" style="margin-bottom:12px">
+      <input id="note" type="text" placeholder="환경 메모 (안경, 조명, 누운 자세, 이어폰 등)" aria-label="환경 메모">
+    </div>
+    <textarea id="report" readonly aria-label="결과 보고서"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button id="reportBtn" type="button">보고서 만들기</button>
+      <button id="copyReportBtn" class="ghost" type="button">복사</button>
+    </div>
+    <pre id="log" aria-label="기록"></pre>
+  </section>
+</main>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script type="module">
+  const MP_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+  const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    stream: null, landmarker: null, delegate: "-", camRes: "-",
+    values: null, prev: null, change: 0, faceFrames: 0, totalFrames: 0,
+    fpsSamples: [], lastVideoTime: -1,
+    baseline: null, collecting: null,
+    peer: null, data: null, call: null, rtts: [], remoteVals: null, remoteStream: false,
+    myId: null, linkState: "대기"
+  };
+
+  const logEl = $("log");
+  function log(msg) {
+    const t = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+    logEl.textContent += `[${t}] ${msg}\n`;
+    const lines = logEl.textContent.split("\n");
+    if (lines.length > 60) logEl.textContent = lines.slice(-60).join("\n");
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function chip(id, st, text) {
+    const el = $(id);
+    el.dataset.state = st;
+    el.querySelector("span").textContent = text;
+  }
+  const avg = (...a) => a.reduce((s, x) => s + (x || 0), 0) / a.length;
+  const fmt = (n, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "-");
+
+  if (!window.isSecureContext) $("secureNotice").classList.add("show");
+
+  // ---------- 카메라 ----------
+  async function startCamera() {
+    $("startBtn").disabled = true;
+    chip("chipCam", "busy", "권한 요청 중");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      chip("chipCam", "bad", "이 브라우저는 카메라를 지원하지 않음");
+      log("getUserMedia 없음. HTTPS 주소인지 확인하세요.");
+      $("startBtn").disabled = false;
+      return;
+    }
+    try {
+      state.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false
+      });
+    } catch (e) {
+      chip("chipCam", "bad", "카메라 실패: " + (e.name || "오류"));
+      log("카메라 오류: " + e.name + " / " + e.message);
+      $("startBtn").disabled = false;
+      return;
+    }
+    const v = $("localVideo");
+    v.srcObject = state.stream;
+    try { await v.play(); } catch (e) { log("video.play 실패: " + e.message); }
+    await new Promise((r) => (v.videoWidth ? r() : v.addEventListener("loadedmetadata", r, { once: true })));
+    state.camRes = `${v.videoWidth}x${v.videoHeight}`;
+    $("localCell").classList.add("has-stream");
+    chip("chipCam", "ok", state.camRes);
+    log("카메라 시작: " + state.camRes);
+    updateConnectButtons();
+    loadModel();
+  }
+
+  // ---------- 얼굴 인식 ----------
+  async function loadModel() {
+    chip("chipModel", "busy", "불러오는 중");
+    try {
+      const mod = await import(MP_URL);
+      const vision = mod.default || mod;
+      const { FaceLandmarker, FilesetResolver } = vision;
+      const fileset = await FilesetResolver.forVisionTasks(MP_URL + "/wasm");
+      const make = (delegate) => FaceLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate },
+        outputFaceBlendshapes: true,
+        runningMode: "VIDEO",
+        numFaces: 1
+      });
+      try {
+        state.landmarker = await make("GPU");
+        state.delegate = "GPU";
+      } catch (gpuErr) {
+        log("GPU 실패, CPU로 재시도: " + (gpuErr.message || gpuErr));
+        state.landmarker = await make("CPU");
+        state.delegate = "CPU";
+      }
+      chip("chipModel", "ok", "준비됨 (" + state.delegate + ")");
+      $("baseBtn").disabled = false;
+      log("얼굴 인식 준비: " + state.delegate);
+      requestAnimationFrame(loop);
+    } catch (e) {
+      chip("chipModel", "bad", "불러오기 실패");
+      log("모델 오류: " + (e.message || e) + " (인터넷 연결 또는 CDN 접근을 확인하세요)");
+    }
+  }
+
+  function loop() {
+    const v = $("localVideo");
+    if (state.landmarker && v.readyState >= 2 && v.currentTime !== state.lastVideoTime) {
+      state.lastVideoTime = v.currentTime;
+      const t0 = performance.now();
+      let res;
+      try { res = state.landmarker.detectForVideo(v, t0); }
+      catch (e) { log("인식 오류: " + e.message); res = null; }
+      const t1 = performance.now();
+      state.fpsSamples.push(t1);
+      while (state.fpsSamples.length && t1 - state.fpsSamples[0] > 1000) state.fpsSamples.shift();
+      if (res) handle(res, t1 - t0);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function handle(res, ms) {
+    state.totalFrames++;
+    const found = res.faceBlendshapes && res.faceBlendshapes.length && res.faceLandmarks && res.faceLandmarks.length;
+    if (!found) {
+      state.values = null;
+      chip("chipFace", "bad", "얼굴 없음");
+      draw(null);
+      renderFps(ms);
+      return;
+    }
+    state.faceFrames++;
+    chip("chipFace", "ok", "감지됨");
+    const m = {};
+    for (const c of res.faceBlendshapes[0].categories) m[c.categoryName] = c.score;
+
+    // 직전 프레임 대비 변화량
+    if (state.prev) {
+      let sum = 0, n = 0;
+      for (const k in m) { sum += Math.abs(m[k] - (state.prev[k] || 0)); n++; }
+      const d = (sum / n) * 100;
+      state.change = state.change * 0.6 + d * 0.4;
+    }
+    state.prev = m;
+
+    const lm = res.faceLandmarks[0];
+    const upper = lm[13], lower = lm[14];
+    const left = lm[234], right = lm[454];
+    const faceW = Math.hypot(right.x - left.x, right.y - left.y);
+    const v = {
+      smile: avg(m.mouthSmileLeft, m.mouthSmileRight),
+      jaw: m.jawOpen || 0,
+      blink: avg(m.eyeBlinkLeft, m.eyeBlinkRight),
+      change: state.change,
+      mx: (upper.x + lower.x) / 2,
+      my: (upper.y + lower.y) / 2,
+      fw: faceW
+    };
+    state.values = v;
+
+    if (state.collecting) {
+      state.collecting.n++;
+      state.collecting.smile += v.smile;
+      state.collecting.jaw += v.jaw;
+      state.collecting.blink += v.blink;
+    }
+    render(v);
+    draw(v);
+    renderFps(ms);
+  }
+
+  function render(v) {
+    $("vSmile").textContent = fmt(v.smile);
+    $("mSmile").style.width = Math.min(100, v.smile * 100) + "%";
+    $("vJaw").textContent = fmt(v.jaw);
+    $("mJaw").style.width = Math.min(100, v.jaw * 100) + "%";
+    $("vBlink").textContent = fmt(v.blink);
+    $("mBlink").style.width = Math.min(100, v.blink * 100) + "%";
+    $("vChange").textContent = fmt(v.change, 1);
+    $("mChange").style.width = Math.min(100, v.change * 10) + "%";
+    $("mouthPos").textContent = `x ${fmt(v.mx)}, y ${fmt(v.my)}`;
+    $("faceW").textContent = fmt(v.fw);
+    if (state.baseline) $("smileRel").textContent = fmt(Math.max(0, v.smile - state.baseline.smile));
+  }
+
+  function renderFps(ms) {
+    $("fps").textContent = `${state.fpsSamples.length} fps (한 번에 ${ms.toFixed(0)}ms)`;
+  }
+
+  // 입 중심 점 그리기. video는 object-fit: cover라서 잘리는 만큼 보정한다.
+  const canvas = $("overlay");
+  const ctx = canvas.getContext("2d");
+  function fitCanvas() {
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+  }
+  window.addEventListener("resize", fitCanvas);
+  fitCanvas();
+  function draw(v) {
+    const vid = $("localVideo");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!v || !vid.videoWidth) return;
+    const cw = canvas.width, ch = canvas.height;
+    const scale = Math.max(cw / vid.videoWidth, ch / vid.videoHeight);
+    const offX = (cw - vid.videoWidth * scale) / 2;
+    const offY = (ch - vid.videoHeight * scale) / 2;
+    const x = v.mx * vid.videoWidth * scale + offX;
+    const y = v.my * vid.videoHeight * scale + offY;
+    const r = Math.max(6, canvas.width * 0.018);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#00f59e";
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.3);
+    ctx.strokeStyle = "#06231a";
+    ctx.stroke();
+  }
+
+  // ---------- 기준선 ----------
+  function saveBaseline() {
+    if (!state.landmarker) return;
+    $("baseBtn").disabled = true;
+    $("baseBtn").textContent = "무표정으로 2초...";
+    state.collecting = { n: 0, smile: 0, jaw: 0, blink: 0 };
+    setTimeout(() => {
+      const c = state.collecting;
+      state.collecting = null;
+      if (c && c.n > 3) {
+        state.baseline = { smile: c.smile / c.n, jaw: c.jaw / c.n, blink: c.blink / c.n };
+        $("baseline").textContent = `미소 ${fmt(state.baseline.smile)}, 입 ${fmt(state.baseline.jaw)}, 눈 ${fmt(state.baseline.blink)}`;
+        log("기준선 저장: " + $("baseline").textContent);
+      } else {
+        $("baseline").textContent = "저장 실패 (얼굴이 안 잡혔습니다)";
+        log("기준선 저장 실패: 얼굴 프레임이 부족합니다.");
+      }
+      $("baseBtn").disabled = false;
+      $("baseBtn").textContent = "무표정 기준선 저장 (2초)";
+    }, 2000);
+  }
+
+  // ---------- 두 기기 연결 ----------
+  function updateConnectButtons() {
+    const ready = !!state.stream && !!state.peer && !!state.myId;
+    $("connectBtn").disabled = !ready;
+    $("copyLinkBtn").disabled = !state.myId;
+  }
+
+  function initPeer() {
+    if (typeof Peer === "undefined") {
+      chip("chipPeer", "bad", "라이브러리 로드 실패");
+      $("myId").textContent = "PeerJS를 불러오지 못했습니다.";
+      log("PeerJS 로드 실패 (인터넷 연결 확인)");
+      return;
+    }
+    const peer = new Peer();
+    state.peer = peer;
+    peer.on("open", (id) => {
+      state.myId = id;
+      $("myId").textContent = id;
+      chip("chipPeer", "ok", "접속됨");
+      log("연결 서버 접속: " + id);
+      const hash = location.hash.replace("#", "");
+      if (hash && hash !== id) {
+        $("remoteId").value = hash;
+        log("링크에서 상대 ID를 가져왔습니다. 카메라를 시작한 뒤 연결을 누르세요.");
+      }
+      updateConnectButtons();
+    });
+    peer.on("connection", (c) => { log("상대가 연결을 요청했습니다."); setupData(c); });
+    peer.on("call", (call) => {
+      log("상대의 영상 호출 수신");
+      call.answer(state.stream || undefined);
+      setupCall(call);
+    });
+    peer.on("disconnected", () => { chip("chipPeer", "busy", "서버 연결 끊김"); log("연결 서버와 끊김"); });
+    peer.on("error", (err) => {
+      chip("chipPeer", "bad", "오류: " + err.type);
+      log("PeerJS 오류: " + err.type + " / " + err.message);
+    });
+  }
+
+  function connectToRemote() {
+    const id = $("remoteId").value.trim().replace(/^.*#/, "");
+    if (!id) { log("상대 ID를 입력하세요."); return; }
+    if (!state.stream) { log("먼저 카메라를 시작하세요."); return; }
+    chip("chipLink", "busy", "연결 중");
+    log("연결 시도: " + id);
+    const c = state.peer.connect(id, { reliable: true });
+    setupData(c);
+    const call = state.peer.call(id, state.stream);
+    setupCall(call);
+  }
+
+  let pingTimer = null, valuesTimer = null;
+  function setupData(c) {
+    state.data = c;
+    c.on("open", () => {
+      state.linkState = "연결됨";
+      chip("chipLink", "ok", "연결됨");
+      log("데이터 연결 열림");
+      clearInterval(pingTimer); clearInterval(valuesTimer);
+      pingTimer = setInterval(() => { if (c.open) c.send({ t: "ping", ts: performance.now() }); }, 2000);
+      valuesTimer = setInterval(() => {
+        const v = state.values;
+        if (c.open && v) c.send({ t: "v", smile: v.smile, jaw: v.jaw, blink: v.blink, change: v.change });
+      }, 200);
+    });
+    c.on("data", (d) => {
+      if (!d) return;
+      if (d.t === "ping") { c.send({ t: "pong", ts: d.ts }); }
+      else if (d.t === "pong") {
+        const rtt = performance.now() - d.ts;
+        state.rtts.push(rtt);
+        if (state.rtts.length > 5) state.rtts.shift();
+        const a = state.rtts.reduce((s, x) => s + x, 0) / state.rtts.length;
+        chip("chipRtt", a < 150 ? "ok" : "busy", a.toFixed(0) + " ms");
+      } else if (d.t === "v") {
+        state.remoteVals = d;
+        $("remoteVals").textContent = `미소 ${fmt(d.smile)}, 입 ${fmt(d.jaw)}, 눈 ${fmt(d.blink)}, 변화 ${fmt(d.change, 1)}`;
+      }
+    });
+    c.on("close", () => {
+      state.linkState = "끊김";
+      chip("chipLink", "bad", "끊김");
+      clearInterval(pingTimer); clearInterval(valuesTimer);
+      log("데이터 연결 닫힘");
+    });
+    c.on("error", (e) => log("데이터 연결 오류: " + (e.message || e)));
+  }
+
+  function setupCall(call) {
+    state.call = call;
+    call.on("stream", (s) => {
+      const rv = $("remoteVideo");
+      rv.srcObject = s;
+      rv.play().catch((e) => log("상대 영상 재생 실패: " + e.message));
+      $("remoteCell").classList.add("has-stream");
+      state.remoteStream = true;
+      log("상대 영상 수신");
+    });
+    call.on("close", () => { $("remoteCell").classList.remove("has-stream"); state.remoteStream = false; log("영상 연결 닫힘"); });
+    call.on("error", (e) => log("영상 연결 오류: " + (e.message || e)));
+  }
+
+  // ---------- 링크, 보고서 ----------
+  async function copyText(text, okMsg) {
+    try { await navigator.clipboard.writeText(text); log(okMsg); }
+    catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); log(okMsg); } catch (e2) { log("복사 실패. 직접 선택해서 복사하세요."); }
+      ta.remove();
+    }
+  }
+
+  function buildReport() {
+    const fps = state.fpsSamples.length;
+    const ratio = state.totalFrames ? Math.round((state.faceFrames / state.totalFrames) * 100) : 0;
+    const rtt = state.rtts.length ? Math.round(state.rtts.reduce((s, x) => s + x, 0) / state.rtts.length) + " ms" : "-";
+    const lines = [
+      "[Azar Play 스모크 테스트 결과]",
+      "기기와 브라우저: " + navigator.userAgent,
+      `화면: ${innerWidth}x${innerHeight}, 배율 ${window.devicePixelRatio}`,
+      "카메라: " + state.camRes,
+      `얼굴 인식: ${state.delegate}, 현재 ${fps} fps, 얼굴 감지율 ${ratio}%`,
+      "기준선: " + $("baseline").textContent,
+      `상대와 연결: ${state.linkState}, 상대 영상 ${state.remoteStream ? "수신" : "미수신"}, 평균 지연 ${rtt}`,
+      "환경 메모: " + ($("note").value || "(없음)"),
+      "---- 기록 ----",
+      logEl.textContent.trim()
+    ];
+    $("report").value = lines.join("\n");
+    log("보고서를 만들었습니다.");
+  }
+
+  $("startBtn").addEventListener("click", startCamera);
+  $("baseBtn").addEventListener("click", saveBaseline);
+  $("connectBtn").addEventListener("click", connectToRemote);
+  $("copyLinkBtn").addEventListener("click", () => {
+    const link = location.origin + location.pathname + "#" + state.myId;
+    copyText(link, "내 링크를 복사했습니다.");
+  });
+  $("reportBtn").addEventListener("click", buildReport);
+  $("copyReportBtn").addEventListener("click", () => {
+    if (!$("report").value) buildReport();
+    copyText($("report").value, "보고서를 복사했습니다.");
+  });
+
+  initPeer();
+</script>
+</body>
+</html>
