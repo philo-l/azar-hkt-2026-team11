@@ -831,21 +831,17 @@
     return { x: (c ? c.F[0] : 0.5) * CW, y: (c ? c.F[1] : 0.5) * CW, w: (c ? c.fw : 0.5) * CW };
   }
   function spawnHit(now, dmg) {
-    const fx = state.fx, f = faceBox();
+    const fx = state.fx, c = state.lastC, f = faceBox();
     const pw = Math.min(1, dmg / 14);
-    let r = 62 + 52 * pw;
-    const rx = f.w * 0.55, roomL = f.x - rx, roomR = CW - (f.x + rx);
-    const side = roomL > roomR ? -1 : 1, room = Math.max(roomL, roomR);
-    r = Math.min(r, room / 1.6);
-    let cx, cy;
-    if (r >= 30) {
-      cx = Math.max(r * 0.8, Math.min(CW - r * 0.8, f.x + side * (rx + r * 0.8)));
-      cy = Math.max(r * 0.8, Math.min(CW - r * 0.8, f.y + (Math.random() - 0.5) * f.w * 0.9));
-    } else { r = 34; cx = Math.random() < 0.5 ? CW * 0.1 : CW * 0.9; cy = CW * 0.2; }
+    // 머리 위에 작게 뜬다
+    const r = Math.max(24, Math.min(46, f.w * 0.1 + 10 * pw));
+    const topX = (c ? c.T[0] : 0.5) * CW, topY = (c ? c.T[1] : 0.2) * CW;
+    const cx = Math.max(r, Math.min(CW - r, topX + (Math.random() - 0.5) * f.w * 0.45));
+    const cy = Math.max(58, topY - f.w * 0.2);
     fx.bursts.push({ x: cx, y: cy, t: now, n: Math.max(1, Math.round(dmg)), rot: (Math.random() - 0.5) * 0.5, r });
     fx.rings.push({ x: cx, y: cy, t: now });
-    const n = Math.round(8 + 10 * pw);
-    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 90 + Math.random() * 110; fx.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: now }); }
+    const n = Math.round(6 + 8 * pw);
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 70 + Math.random() * 90; fx.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: now }); }
     fx.shake = Math.max(fx.shake, 0.6 + 0.4 * pw); fx.impact = 1; fx.lastHit = now; state.flash = 1;
   }
   function addCrack() {
@@ -903,7 +899,7 @@
     fx.rings = fx.rings.filter((q) => now - q.t < 450);
     for (const q of fx.rings) {
       const age = (now - q.t) / 450;
-      cctx.beginPath(); cctx.arc(q.x, q.y, 16 + age * CW * 0.18, 0, 6.283);
+      cctx.beginPath(); cctx.arc(q.x, q.y, 10 + age * CW * 0.09, 0, 6.283);
       cctx.strokeStyle = `rgba(255,170,0,${1 - age})`; cctx.lineWidth = 12 * (1 - age) + 1; cctx.stroke();
     }
     // 불꽃
@@ -917,13 +913,13 @@
     fx.bursts = fx.bursts.filter((q) => now - q.t < 900);
     for (const q of fx.bursts) {
       const age = (now - q.t) / 900, k = age < 0.17 ? easeOutBack(age / 0.17) : 1;
-      const y = q.y - age * 36;
+      const y = q.y - age * 50;
       cctx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
       starPath(q.x, y, q.r * k, q.rot);
       cctx.fillStyle = "#ffe14d"; cctx.fill();
       cctx.lineWidth = 6; cctx.strokeStyle = "#ff5a00"; cctx.stroke();
       cctx.save(); cctx.translate(q.x, y); cctx.rotate(q.rot * 0.6); cctx.scale(k, k);
-      cctx.font = `italic 900 ${Math.max(28, Math.round(q.r * 0.6))}px "Apple SD Gothic Neo", system-ui, sans-serif`;
+      cctx.font = `italic 900 ${Math.max(24, Math.round(q.r * 0.95))}px "Apple SD Gothic Neo", system-ui, sans-serif`;
       cctx.lineWidth = 9; cctx.strokeStyle = "#1a1a1a"; cctx.lineJoin = "round";
       cctx.strokeText("-" + q.n, 0, 2); cctx.fillStyle = "#fff"; cctx.fillText("-" + q.n, 0, 2);
       cctx.restore();
