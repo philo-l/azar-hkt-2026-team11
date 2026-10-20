@@ -645,7 +645,12 @@
   const comp = $("comp"), cctx = comp.getContext("2d"), CW = 480;
   comp.width = CW; comp.height = CW;
   // 상대에게는 필터가 입혀진 이 캔버스 영상을 보낸다.
-  state.out = comp.captureStream(30);
+  // 상대에게 가는 영상은 별도 캔버스. 둘 다 준비해서 게임이 시작되기 전에는 검은 화면만 보낸다(동의 구조).
+  const outc = document.createElement("canvas");
+  outc.width = CW; outc.height = CW;
+  const octx = outc.getContext("2d");
+  state.live = false;
+  state.out = outc.captureStream(30);
   state.filterStage = -1;
   state.flash = 0; state.hp = 1; state.lastC = null;
   state.fx = { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], lastHit: 0, hpGhost: 1 };
@@ -690,6 +695,12 @@
     return [a, b];
   }
 
+  // 영상과 소리는 둘 다 준비해서 게임이 시작된 뒤에만 상대에게 간다. 방이 닫히거나 상대가 나가면 다시 끊긴다.
+  function setLive(on) {
+    state.live = on;
+    if (audio.mix) audio.mix.gain.value = on ? 1 : 0;
+  }
+
   function checkStart() {
     if (g.myReady && g.peerReady && isHost() && !playing()) {
       // 두 사람에게 서로 다른 필터를 나눠준다 (호스트가 정해서 알려준다)
@@ -708,6 +719,7 @@
     state.filterStage = -1; setVoice(null); state.voiceFor = null;
     Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0;
     if (!state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
+    setLive(true);
     log(solo ? "혼자 해보기 시작" : "게임 시작");
     ui();
   }
@@ -742,14 +754,14 @@
     ui();
   }
   function expire() {
-    g.phase = "expired"; state.filterStage = -1; setVoice(null); state.voiceFor = null;
+    g.phase = "expired"; state.filterStage = -1; setLive(false); setVoice(null); state.voiceFor = null;
     log("방이 닫혔습니다.");
     ui();
   }
   function onLinkLost() {
     if ((playing() || g.phase === "reaction") && !g.solo) {
       clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
-      g.phase = "idle"; g.note = "상대가 나갔어요.";
+      g.phase = "idle"; g.note = "상대가 나갔어요."; setLive(false);
       state.filterStage = -1; setVoice(null); state.voiceFor = null;
     }
     g.myReady = false; g.peerReady = false; ui();
@@ -993,6 +1005,7 @@
     const AC = window.AudioContext || window.webkitAudioContext;
     audio.ctx = new AC();
     audio.mix = audio.ctx.createGain();
+    audio.mix.gain.value = 0;
     audio.dest = audio.ctx.createMediaStreamDestination();
     audio.mix.connect(audio.dest);
     // 통화 시작 전에 오디오 트랙을 미리 달아둔다
@@ -1150,6 +1163,8 @@
       }
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
+    octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
+    if (state.live) octx.drawImage(comp, 0, 0);
     requestAnimationFrame(drawComp);
   }
   drawComp();
