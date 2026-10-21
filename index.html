@@ -172,10 +172,10 @@
   #remoteCell.has-stream .avbg { display: none; }
   #remoteCell.mascot .avbg { display: none; }
   #remoteCell:not(.has-stream) .empty { display: none; }
-  #phone[data-lay="ready"] #localCell { display: block; left: 76.5px; top: 352px; width: 240px; height: 240px; }
+  #phone[data-lay="ready"] #localCell { display: block; left: calc(196.5px - 120px * var(--k, 1)); top: calc(112px + 240px * var(--k, 1)); width: calc(240px * var(--k, 1)); height: calc(240px * var(--k, 1)); }
   #phone[data-lay="camera"] #localCell { display: block; left: 76.5px; top: 84px; width: 240px; height: 240px; }
-  #phone[data-lay="game"] #remoteCell { display: block; left: 56.5px; top: 104px; width: 280px; height: 280px; }
-  #phone[data-lay="game"] #localCell { display: block; left: 56.5px; top: 394px; width: 280px; height: 280px; }
+  #phone[data-lay="game"] #remoteCell { display: block; left: calc(196.5px - var(--sg, 280px) / 2); top: 104px; width: var(--sg, 280px); height: var(--sg, 280px); }
+  #phone[data-lay="game"] #localCell { display: block; left: calc(196.5px - var(--sg, 280px) / 2); top: calc(114px + var(--sg, 280px)); width: var(--sg, 280px); height: var(--sg, 280px); }
   #phone[data-lay="chat"] #remoteCell { display: block; left: 0; top: 0; width: 393px; height: 752px; border-radius: 0 0 32px 32px; }
   #phone[data-lay="chat"] #localCell { display: block; left: 267px; top: 68px; width: 110px; height: 180px; border-radius: 16px; z-index: 6; }
   #phone .who { position: absolute; left: 16px; bottom: 14px; z-index: 5; pointer-events: none; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
@@ -227,12 +227,12 @@
   #phone .rnd { width: 44px; height: 44px; border-radius: 22px; background: rgba(0,0,0,.45); display: grid; place-items: center; }
 
   /* 온보딩 */
-  #s-welcome .hero { position: absolute; left: 24px; top: 70px; width: 345px; height: 300px; border-radius: 28px; background: linear-gradient(180deg, #dcf7e8, #c7edfa); overflow: hidden; }
+  #s-welcome .hero { position: absolute; left: 24px; top: 70px; width: 345px; height: calc(300px + min(var(--dy, 0px), 0px)); border-radius: 28px; background: linear-gradient(180deg, #dcf7e8, #c7edfa); overflow: hidden; }
   .avatar { position: relative; display: block; }
   .avatar > svg.body { width: 100%; height: 100%; }
   .avatar .crown { position: absolute; left: 16%; top: -9%; width: 40%; transform: rotate(-18deg); }
   .avatar .hat { position: absolute; left: 34%; top: -10%; width: 30%; transform: rotate(8deg); }
-  #s-welcome .hero .avatar { position: absolute; left: 70px; top: 40px; width: 210px; height: 210px; }
+  #s-welcome .hero .avatar { position: absolute; left: calc(50% - 105px); top: calc(50% - 105px); width: 210px; height: 210px; transform: scale(var(--kh, 1)); }
   #s-welcome h1, #s-camera h1, .h1 { position: absolute; left: 24px; margin: 0; font: 900 30px/1.2 "Noto Sans"; }
   .p15 { position: absolute; left: 24px; width: 345px; margin: 0; font: 400 15px/1.45 "Noto Sans"; color: #aaa; }
   .step { position: absolute; left: 24px; width: 345px; height: 40px; }
@@ -266,7 +266,7 @@
   #phone .toast.on { display: block; }
 
   /* Ready */
-  #s-ready .pcard { position: absolute; left: 76.5px; top: 104px; width: 240px; height: 240px; border-radius: 28px; overflow: hidden; background: #ffdacc; }
+  #s-ready .pcard { position: absolute; left: calc(196.5px - 120px * var(--k, 1)); top: 104px; transform: scale(var(--k, 1)); transform-origin: 0 0; width: 240px; height: 240px; border-radius: 28px; overflow: hidden; background: #ffdacc; }
   #s-ready .pcard::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%); z-index: 1; }
   #s-ready .pcard .avatar { position: absolute; left: 36px; top: 42px; width: 168px; height: 168px; }
   #s-ready .badge { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 3; height: 26px; border-radius: 13px; background: rgba(60,60,60,.7); padding: 0 12px; display: flex; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; white-space: nowrap; }
@@ -278,16 +278,16 @@
   #s-ready .ichips { position: absolute; left: 0; width: 100%; top: 204px; display: flex; justify-content: center; gap: 6px; z-index: 3; margin: 0; }
   #s-ready .ichips span { height: 24px; border-radius: 12px; background: #000; padding: 0 9px; display: flex; align-items: center; gap: 4px; font: 700 11px/1 "Noto Sans"; }
   #s-ready .glow, #s-ready .glowme { position: absolute; border-radius: 28px; pointer-events: none; display: none; z-index: 4; border: 3px solid #00f59e; box-shadow: 0 0 24px 2px rgba(0,245,158,.55), inset 0 0 40px rgba(0,245,158,.35); }
-  #s-ready .glow { left: 76.5px; top: 104px; width: 240px; height: 240px; }
-  #s-ready .glowme { left: 76.5px; top: 352px; width: 240px; height: 240px; z-index: 5; }
+  #s-ready .glow { left: calc(196.5px - 120px * var(--k, 1)); top: 104px; width: calc(240px * var(--k, 1)); height: calc(240px * var(--k, 1)); }
+  #s-ready .glowme { left: calc(196.5px - 120px * var(--k, 1)); top: calc(112px + 240px * var(--k, 1)); width: calc(240px * var(--k, 1)); height: calc(240px * var(--k, 1)); z-index: 5; }
   #phone[data-pr="1"] #s-ready .glow { display: block; }
   #phone[data-mr="1"] #s-ready .glowme { display: block; }
   #phone[data-pr="1"] #s-ready .pcard { background: linear-gradient(180deg, #ffdacc 0%, #5be6a8 70%, #14b57a 100%); }
-  #s-ready .mychip { position: absolute; left: 88.5px; top: 364px; height: 26px; border-radius: 13px; background: rgba(0,0,0,.6); padding: 0 10px 0 8px; display: flex; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; z-index: 6; }
+  #s-ready .mychip { position: absolute; left: calc(208.5px - 120px * var(--k, 1)); top: calc(124px + 240px * var(--k, 1)); height: 26px; border-radius: 13px; background: rgba(0,0,0,.6); padding: 0 10px 0 8px; display: flex; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; z-index: 6; }
   #s-ready .mychip .ico { width: 16px; height: 16px; }
-  #s-ready .wand { position: absolute; left: 88.5px; top: 536px; z-index: 6; width: 44px; height: 44px; border-radius: 22px; background: rgba(0,0,0,.45); display: grid; place-items: center; }
+  #s-ready .wand { position: absolute; left: calc(208.5px - 120px * var(--k, 1)); top: calc(56px + 480px * var(--k, 1)); z-index: 6; width: 44px; height: 44px; border-radius: 22px; background: rgba(0,0,0,.45); display: grid; place-items: center; }
   #s-ready .wand .ico { width: 20px; height: 20px; }
-  #s-ready .myready { position: absolute; left: 233px; top: 548px; z-index: 6; height: 26px; border-radius: 13px; background: #00f59e; color: #111; padding: 0 12px 0 8px; display: none; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; }
+  #s-ready .myready { position: absolute; left: calc(103.5px + 120px * var(--k, 1)); top: calc(68px + 480px * var(--k, 1)); z-index: 6; height: 26px; border-radius: 13px; background: #00f59e; color: #111; padding: 0 12px 0 8px; display: none; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; }
   #phone[data-mr="1"] #s-ready .myready { display: flex; }
   #s-ready h3 { position: absolute; left: 0; width: 100%; top: 602px; margin: 0; text-align: center; font: 700 22px/33px "Noto Sans"; }
   #s-ready .xbtn { position: absolute; left: 24px; top: 640px; }
@@ -320,7 +320,7 @@
   #phone .hud.crit .timer { font-size: 26px; }
   #phone .hud.crit .timer, #phone .hud.crit .timer small { color: #ed3b4f; }
   #phone .hud .gemchip { top: 8px; right: 16px; }
-  #s-game .count { position: absolute; left: 0; width: 100%; top: 270px; text-align: center; font: 900 120px/1 "Noto Sans"; text-shadow: 0 4px 30px rgba(0,0,0,.6); z-index: 20; display: none; }
+  #s-game .count { position: absolute; left: 0; width: 100%; top: calc(44px + var(--sg, 280px) / 2); text-align: center; font: 900 120px/1 "Noto Sans"; text-shadow: 0 4px 30px rgba(0,0,0,.6); z-index: 20; display: none; }
   #phone[data-cd="1"] #s-game .count { display: block; }
   #s-game .lbl { position: absolute; left: 56.5px; font: 800 12px/1 "Noto Sans"; }
   #s-game .gmsg2 { position: absolute; left: 24px; width: 345px; top: 690px; text-align: center; font: 700 16px/1.3 "Noto Sans"; }
@@ -329,7 +329,7 @@
   #s-game .bars div { height: 6px; border-radius: 3px; background: #2e2e2e; margin-bottom: 6px; overflow: hidden; }
   #s-game .bars div span { display: block; height: 100%; width: 0; background: #ff6b6b; }
   #s-game .bars div.op span { background: #ffb020; }
-  #s-after .rchip { position: absolute; left: 50%; top: 345px; transform: translateX(-50%); min-width: 150px; padding: 10px 22px 12px; border-radius: 20px; background: rgba(34,34,34,.92); text-align: center; z-index: 22; }
+  #s-after .rchip { position: absolute; left: 50%; top: calc(65px + var(--sg, 280px)); transform: translateX(-50%); min-width: 150px; padding: 10px 22px 12px; border-radius: 20px; background: rgba(34,34,34,.92); text-align: center; z-index: 22; }
   #s-after .rchip b { display: block; font: 900 22px/1.2 "Noto Sans"; }
   #s-after .rchip span { display: block; font: 400 12px/1.3 "Noto Sans"; color: #ccc; }
   #s-after .rchip em { display: none; margin-top: 2px; font: 900 20px/1.3 "Noto Sans"; font-style: normal; color: #00f59e; align-items: center; justify-content: center; gap: 4px; }
@@ -406,6 +406,7 @@
   #phone #s-finding h2, #phone #s-finding p, #phone #s-finding .pill, #phone #s-finding .few,
   #phone #s-after .rbar, #phone #s-after .bb, #phone #s-game .gmsg2, #phone #s-game .gsub2, #phone #s-game .bars,
   #phone #s-chat .dimb, #phone #s-chat .bar, #phone #s-chat .nm, #phone #s-chat .nm2, #phone #s-chat .follow { translate: 0 var(--dy, 0px); }
+  #phone #s-welcome h1, #phone #s-welcome .p15, #phone #s-welcome .step { translate: 0 min(var(--dy, 0px), 0px); }
   #phone #s-finding .ring, #phone #s-finding .mascot, #phone #s-finding .arrow { translate: 0 calc(var(--dy, 0px) / 2); }
   #phone[data-lay="chat"] #remoteCell { height: calc(752px + var(--dy, 0px)); }
   #phone .tabbar { height: calc(77px + var(--dy, 0px)); }
@@ -439,6 +440,7 @@
   </defs>
 </svg>
 
+<div id="vhProbe" style="position:fixed;left:0;top:0;width:1px;height:100%;visibility:hidden;pointer-events:none"></div>
 <div id="app">
   <div id="phoneWrap">
     <div id="phone" data-screen="welcome" data-lay="" data-top="0" data-tab="0" data-hud="0">
@@ -1891,17 +1893,23 @@
     const desk = forceDesk || (!forceMobile && !coarse && innerWidth >= 820);
     appEl.classList.toggle("desk", desk);
     const wrap = $("phoneWrap");
-    const vh = (window.visualViewport && window.visualViewport.height) || innerHeight;
+    // 홈 화면 앱(standalone)에서는 innerHeight가 실제 화면보다 짧게 나와서 아래가 비므로, 고정 요소로 실제 높이를 잰다.
+    const standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+    const probe = $("vhProbe") ? $("vhProbe").offsetHeight : 0;
+    const vh = standalone ? Math.max(innerHeight, probe, screen.height || 0) : ((window.visualViewport && window.visualViewport.height) || innerHeight);
     let s, w, h, ph = 852;
     if (desk) { s = Math.min(1.15, (vh - 40 - 20) / 852, (innerWidth - 40 - 20 - 560) / 393); s = Math.max(0.4, s); w = 393 * s + 20; h = 852 * s + 20; }
     else {
-      // 폰: 가로를 꽉 채우고, 화면이 더 길면 세로로 늘려서 아래쪽 묶음을 아래에 붙인다. 화면이 짧으면(브라우저 바가 있을 때) 비율을 유지하고 양옆을 남긴다.
-      const sw = innerWidth / 393, H = vh / sw;
-      if (H >= 852) { s = sw; ph = H; } else { s = Math.min(sw, vh / 852); }
+      // 폰: 가로를 꽉 채운다. 화면이 852보다 길면 아래쪽 묶음을 아래로 늘리고, 짧으면(사파리 탭처럼 바가 있을 때) 760까지는 레이아웃을 압축해서 채운다.
+      // 760보다도 짧으면 비율을 유지하고 양옆을 남긴다.
+      const sw = innerWidth / 393, H0 = vh / sw;
+      if (H0 >= 760) { s = sw; ph = H0; } else { s = vh / 760; ph = 760; }
       w = 393 * s; h = ph * s;
     }
     wrap.style.width = w + "px"; wrap.style.height = h + "px";
-    phone.style.height = ph + "px"; phone.style.setProperty("--dy", (ph - 852) + "px");
+    const dy = ph - 852, neg = Math.min(0, dy);
+    phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
+    phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
   }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
