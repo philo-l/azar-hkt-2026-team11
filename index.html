@@ -281,6 +281,7 @@
   #s-ready .pname { position: absolute; left: 0; width: 100%; top: 136px; text-align: center; font: 900 22px/30px "Noto Sans"; z-index: 3; }
   #s-ready .pinfo { position: absolute; left: 0; width: 100%; top: 170px; display: flex; justify-content: center; align-items: center; gap: 6px; font: 400 12px/1 "Noto Sans"; z-index: 3; }
   #s-ready .ichips { position: absolute; left: 0; width: 100%; top: 204px; display: flex; justify-content: center; gap: 6px; z-index: 3; margin: 0; }
+  #s-ready .ichips span img { width: 15px; height: 15px; }
   #s-ready .ichips span { height: 24px; border-radius: 12px; background: #000; padding: 0 9px; display: flex; align-items: center; gap: 4px; font: 700 11px/1 "Noto Sans"; }
   #s-ready .glow, #s-ready .glowme { position: absolute; border-radius: 28px; pointer-events: none; display: none; z-index: 4; border: 3px solid #00f59e; box-shadow: 0 0 24px 2px rgba(0,245,158,.55), inset 0 0 40px rgba(0,245,158,.35); }
   #s-ready .glow { left: calc(196.5px - 120px * var(--k, 1)); top: 104px; width: calc(240px * var(--k, 1)); height: calc(240px * var(--k, 1)); }
@@ -488,11 +489,13 @@
   #phone[data-lay="game"] .who span { font-size: 13px; opacity: .85; }
   #s-game .hprow { position: absolute; left: calc(196.5px - var(--sg, 320px) / 2); width: var(--sg, 320px); height: 12px; }
   #s-game #hpP { top: 104px; } #s-game #hpM { top: calc(130px + var(--sg, 320px)); }
-  #s-game .hpi { position: absolute; left: 0; top: 0; width: 12px; height: 12px; font-size: 10px; line-height: 12px; }
+  #s-game .hpi { position: absolute; left: -1px; top: -2px; width: 16px; height: 16px; }
+  #s-game .hpi img { width: 100%; height: 100%; display: block; }
   #s-game .hpt { position: absolute; left: 20px; right: 8px; top: 1px; height: 10px; border-radius: 6px; background: #fff; overflow: hidden; }
   #s-game .hpt span { display: block; height: 100%; width: 100%; border-radius: 6px; background: #00f59e; transition: width .25s ease, background-color .25s; }
   #s-game .fbadge { position: absolute; width: 40px; height: 40px; border-radius: 20px; background: #222; display: none; place-items: center; font-size: 20px; left: calc(196.5px + var(--sg, 320px) / 2 - 54px); top: 134px; z-index: 6; }
   #s-game .fbadge.on { display: grid; }
+  #s-game .fbadge img { width: 26px; height: 26px; }
   /* Finding: 라이브러리 화살표(ImageLoadingArrow)가 아바타를 둘러싸고 세로축으로 돌며 깊이감을 만든다. 레이더 링은 안쪽에서 생겨 퍼지며 사라진다. */
   #s-finding .ring { left: 47px; top: 270px; width: 300px; height: 300px; opacity: 0; scale: .3; background: rgba(0,246,158,.34); animation: radar 3s ease-out infinite; }
   #s-finding .ring:nth-of-type(2) { animation-delay: 1s; }
@@ -590,7 +593,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t9</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t10</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -623,7 +626,7 @@
           <div class="badge" id="pBadge"></div>
           <div class="pname">user0424</div>
           <div class="pinfo" data-flag="it">Italy · Italian</div>
-          <div class="ichips"><span>🧳 Travel</span><span>🎬 Movies</span><span>⚽ Sports</span></div>
+          <div class="ichips"><span><img src="assets/emoji/luggage.png" alt="">Travel</span><span><img src="assets/emoji/clapper.png" alt="">Movies</span><span><img src="assets/emoji/football.png" alt="">Sports</span></div>
         </div>
         <div class="glow"></div><div class="glowme"></div>
         <div class="mychip"><svg class="ico"><use href="#ic-eyeslash"/></svg>Only you can see this</div>
@@ -1275,7 +1278,7 @@
   }
 
   // 반응 이모지는 Figma 라이브러리 이미지를 쓴다. 키 이름으로 주고받는다.
-  const EMO_SRC = { awesome: "assets/emoji/awesome.png", funny: "assets/emoji/funny.png", friendly: "assets/emoji/friendly.png", wow: "assets/emoji/wow.png", rabbit: "assets/emoji/rabbit.png", love: "assets/emoji/love.png", charming: "assets/emoji/charming.png", ghost: "assets/emoji/ghost.png" };
+  const EMO_SRC = { burger: "assets/emoji/burger.png", cakeslice: "assets/emoji/cakeslice.png", popcorn: "assets/emoji/popcorn.png", cake: "assets/emoji/cake.png", lollipop: "assets/emoji/lollipop.png", skull: "assets/emoji/skull.png", bomb: "assets/emoji/bomb.png", moai: "assets/emoji/moai.png", heartfire: "assets/emoji/heartfire.png", trophy: "assets/emoji/trophy.png", shock: "assets/emoji/shock.png", luggage: "assets/emoji/luggage.png", clapper: "assets/emoji/clapper.png", football: "assets/emoji/football.png", lips: "assets/emoji/lips.png", thought: "assets/emoji/thought.png", awesome: "assets/emoji/awesome.png", funny: "assets/emoji/funny.png", friendly: "assets/emoji/friendly.png", wow: "assets/emoji/wow.png", rabbit: "assets/emoji/rabbit.png", love: "assets/emoji/love.png", charming: "assets/emoji/charming.png", ghost: "assets/emoji/ghost.png" };
   function floatEmoji(id, e) {
     const el = document.createElement("span");
     el.className = "pop";
@@ -1438,7 +1441,7 @@
   // ---------- 고진감래 ----------
   // 이모지가 2~3개씩 떠오르고, 얼굴을 움직여 입을 이모지에 댄 뒤 입을 열었다 닫으면 먹는다. 음식은 점수, 똥과 해골은 감점(음식보다 크다).
   // 이모지 순서와 위치는 호스트가 정한 seed로 두 사람에게 똑같이 만든다(R16).
-  const FOOD = ["🍬", "🍫", "🍰", "🍩", "🍪"], BAD = ["💩", "💀"];
+  const FOOD = ["burger", "cakeslice", "popcorn", "cake", "lollipop"], BAD = ["skull", "bomb", "moai"];   // Figma 라이브러리 3D 이모지
   const SPAWN_MS = 1100, LIFE_MS = 2800, OFFSET_MS = 600, EAT_PTS = 10, BAD_PTS = -25, EAT_MAX = 150;
   function rng(seed) {
     let a = seed >>> 0;
@@ -1593,6 +1596,8 @@
   drawMascot();
 
   // ---------- 고진감래 이모지 그리기 ----------
+  const EIMG = {};
+  const eimg = (k) => EIMG[k] || (EIMG[k] = Object.assign(new Image(), { src: EMO_SRC[k] }));
   function drawTargets() {
     const list = state.eatTargets || [];
     if (!list.length) return;
@@ -1602,7 +1607,7 @@
       const x = t.x * CW, y = t.y * CW;
       cctx.globalAlpha = t.life < 0.2 ? t.life / 0.2 : 1;
       cctx.font = `${Math.round(CW * 0.15 * pulse)}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-      cctx.fillText(t.ch, x, y);
+      { const im = eimg(t.ch), sz = CW * 0.2 * pulse; if (im.complete && im.naturalWidth) cctx.drawImage(im, x - sz / 2, y - sz / 2, sz, sz); }
       cctx.beginPath(); cctx.arc(x, y, CW * 0.1, -Math.PI / 2, -Math.PI / 2 + 6.283 * t.life);
       cctx.strokeStyle = t.bad ? "#ff4d4d" : "#ffffff"; cctx.lineWidth = 4; cctx.stroke();
     }
@@ -1715,15 +1720,11 @@
       cctx.restore();
       cctx.globalAlpha = 1;
     }
-    // 어지러운 별
+    // 데미지를 입으면 놀란 얼굴 이모지가 머리 위에서 튀어 올랐다 사라진다
     if (c && now - fx.lastHit < 900) {
-      const a0 = now / 140, r = c.fw * CW * 0.45;
-      cctx.font = `${Math.round(c.fw * CW * 0.2)}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-      cctx.globalAlpha = Math.min(1, (900 - (now - fx.lastHit)) / 400);
-      for (let i = 0; i < 3; i++) {
-        const a = a0 + (i * 6.283) / 3;
-        cctx.fillText("⭐", c.T[0] * CW + Math.cos(a) * r, c.T[1] * CW - c.fw * CW * 0.3 + Math.sin(a) * r * 0.25);
-      }
+      const age = (now - fx.lastHit) / 900, k = age < 0.2 ? easeOutBack(age / 0.2) : 1, im = eimg("shock"), sz = c.fw * CW * 0.42 * k;
+      cctx.globalAlpha = age > 0.65 ? 1 - (age - 0.65) / 0.35 : 1;
+      if (im.complete && im.naturalWidth) cctx.drawImage(im, c.T[0] * CW - sz / 2, c.T[1] * CW - c.fw * CW * 0.62 - age * 14 - sz / 2, sz, sz);
       cctx.globalAlpha = 1;
     }
     // HP 바는 영상 위의 HTML 줄(HP row)로 옮겼다. 영상에는 그리지 않는다.
@@ -2022,7 +2023,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t9  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t10  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2071,7 +2072,7 @@
     laugh: { title: "Crack Up", tiles: [["funny", "Funny filters", "Silly faces pop up every few seconds."], ["awesome", "Stay straight", "Every laugh drains your HP."], ["love", "Win and earn", "The one who laughs less wins."]] },
     eat: { title: "Yum or Yuck", tiles: [["wow", "Eat yum", "Open wide for yum: +10."], ["ghost", "Dodge yuck", "Eat yuck: −25."], ["awesome", "Top score wins", "Highest score in 30 sec wins."]] }
   };
-  const FILTER_ICONS = ["👄", "👃", "🎈", "⬇️", "🧠", "⚪"];   // 왕입, 왕코, 풍선 볼, 쭉 턱, 왕이마, 콩알 얼굴
+  const FILTER_ICONS = ["@lips", "👃", "🎈", "⬇️", "@thought", "⚪"];   // 왕입, 왕코, 풍선 볼, 쭉 턱, 왕이마, 콩알 얼굴
   const RESULTS = {
     win: ["You won!", (e) => e ? "You ate more" : "You laughed less", true],
     ko_win: ["You won!", () => "Their energy ran out", true],
@@ -2241,11 +2242,11 @@
       const hpOf = (mine) => UI.dbg ? (mine ? 0.9 : 0.6) : eat ? Math.min(1, (mine ? g.score : g.peerScore || 0) / EAT_MAX) : mine ? state.hp : Math.max(0, 1 - (g.peerScore || 0) / HP_MAX);
       const setHp = (id, v) => { const f = $(id); f.style.width = Math.max(0, Math.min(1, v)) * 100 + "%"; f.style.backgroundColor = eat ? "#00f59e" : v > 0.5 ? "#00f59e" : v > 0.25 ? "#ffb020" : "#ed3b4f"; };
       setHp("hpMf", V.cd ? (eat ? 0 : 1) : hpOf(true)); setHp("hpPf", V.cd ? (eat ? 0 : 1) : hpOf(false));
-      $("hpMi").textContent = $("hpPi").textContent = eat ? "⭐" : "❤️";
+      $("hpMi").innerHTML = $("hpPi").innerHTML = `<img src="${EMO_SRC[eat ? "trophy" : "heartfire"]}" alt="">`;
       // 상대가 지금 쓰는 필터 아이콘 (웃음 참기)
       const step = Math.floor((V.el || 0) / STEP_MS), pf = UI.dbg ? 2 : (g.peerSeq && g.peerSeq.length ? g.peerSeq[step % g.peerSeq.length] : -1);
       const fb = $("fBadge"), show = !eat && V.play && pf >= 0;
-      fb.classList.toggle("on", show); if (show) fb.textContent = FILTER_ICONS[pf % FILTER_ICONS.length];
+      fb.classList.toggle("on", show); if (show) { const ic = FILTER_ICONS[pf % FILTER_ICONS.length]; fb.innerHTML = ic[0] === "@" ? `<img src="${EMO_SRC[ic.slice(1)]}" alt="">` : ic; }
     }
     if (V.screen === "after" || V.screen === "pay") {
       const r = RESULTS[V.result] || RESULTS.nopeer;
