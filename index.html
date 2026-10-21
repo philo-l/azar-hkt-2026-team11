@@ -441,6 +441,11 @@
 </svg>
 
 <div id="vhProbe" style="position:fixed;left:0;top:0;width:1px;height:100%;visibility:hidden;pointer-events:none"></div>
+<div id="vhProbe2" style="position:fixed;left:0;top:0;width:1px;height:100vh;visibility:hidden;pointer-events:none"></div>
+<div id="vhProbe3" style="position:fixed;left:0;top:0;width:1px;height:100dvh;visibility:hidden;pointer-events:none"></div>
+<div id="vhProbe4" style="position:fixed;left:0;top:0;width:1px;height:100lvh;visibility:hidden;pointer-events:none"></div>
+<div id="sizeHit" style="position:fixed;left:0;top:0;width:64px;height:48px;z-index:9998"></div>
+<pre id="sizeDbg" style="display:none;position:fixed;left:6px;top:50px;z-index:9999;margin:0;padding:6px 8px;background:rgba(0,0,0,.85);color:#0f8;font:10px/1.35 ui-monospace,Menlo,monospace;border-radius:6px;pointer-events:none"></pre>
 <div id="app">
   <div id="phoneWrap">
     <div id="phone" data-screen="welcome" data-lay="" data-top="0" data-tab="0" data-hud="0">
@@ -1895,8 +1900,9 @@
     const wrap = $("phoneWrap");
     // 홈 화면 앱(standalone)에서는 innerHeight가 실제 화면보다 짧게 나와서 아래가 비므로, 고정 요소로 실제 높이를 잰다.
     const standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
-    const probe = $("vhProbe") ? $("vhProbe").offsetHeight : 0;
-    const vh = standalone ? Math.max(innerHeight, probe, screen.height || 0) : ((window.visualViewport && window.visualViewport.height) || innerHeight);
+    const pr = ["vhProbe", "vhProbe2", "vhProbe3", "vhProbe4"].map((id) => ($(id) ? $(id).offsetHeight : 0));
+    const probe = Math.max(...pr);
+    const vh = standalone ? Math.max(innerHeight, outerHeight || 0, probe, screen.height || 0) : ((window.visualViewport && window.visualViewport.height) || innerHeight);
     let s, w, h, ph = 852;
     if (desk) { s = Math.min(1.15, (vh - 40 - 20) / 852, (innerWidth - 40 - 20 - 560) / 393); s = Math.max(0.4, s); w = 393 * s + 20; h = 852 * s + 20; }
     else {
@@ -1911,7 +1917,9 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
+  { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
   // 폰은 주소창, 상태바, 회전 때 크기가 바뀌어도 resize가 안 오는 경우가 있어서 다시 맞춘다.
   for (const ev of ["orientationchange", "pageshow", "focus"]) addEventListener(ev, () => setTimeout(fit, 150));
