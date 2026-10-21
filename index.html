@@ -2336,7 +2336,7 @@
         const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff6b8a, roughness: 0.5 })); tongue.scale.set(0.1, 0.01, 0.03); tongue.position.set(0, -0.04, 0.012); mouthOpen.add(tongue);
         mouthOpen.visible = false; face.add(mouthOpen);
         // 고리 화살표: 진짜 3D 고리라서 앞쪽은 몸 앞으로, 뒤쪽은 몸 뒤로 지나간다. 뾰족한 머리가 가는 방향의 앞에 있다.
-        const tilt = new THREE.Group(); tilt.rotation.order = "ZXY"; tilt.rotation.set(1.05, 0, 0.62); tilt.visible = withRing; root.add(tilt);   // 대각선(/)으로 기울여 BI처럼
+        const tilt = new THREE.Group(); tilt.rotation.order = "ZXY"; tilt.rotation.set(1.18, 0, 0.26); tilt.visible = withRing; root.add(tilt);   // 대각선(/)으로 기울여 BI처럼
         const spin = new THREE.Group(); tilt.add(spin);
         const ringMat = new THREE.MeshStandardMaterial({ color: 0x4d4d4d, roughness: 0.4, metalness: 0.1 });
         const R = 1.55, arc = Math.PI * 2 * 0.84;
