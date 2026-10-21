@@ -758,6 +758,8 @@
     if (lines.length > 60) logEl.textContent = lines.slice(-60).join("\n");
     logEl.scrollTop = logEl.scrollHeight;
   }
+  // PeerJS가 콘솔에 남기는 경고와 오류도 기록에 넣는다(폰에서 원인을 볼 수 있게).
+  for (const k of ["warn", "error"]) { const o = console[k].bind(console); console[k] = (...a) => { try { if (String(a[0]).includes("PeerJS")) log("[" + k + "] " + a.map((x) => (x && x.message) || String(x)).join(" ").slice(0, 160)); } catch (e) {} o(...a); }; }
   function chip(id, st, text) {
     const el = $(id);
     el.dataset.state = st;
@@ -1003,7 +1005,7 @@
     clearTimeout(retryTimer);
     if (state.peer) { try { state.peer.destroy(); } catch (e) {} }
     state.peer = null; state.myId = null; slotIndex = -1;
-    const peer = new Peer(SLOTS[i], { config: { iceServers: ICE_SERVERS } });
+    const peer = new Peer(SLOTS[i], { debug: 2, config: { iceServers: ICE_SERVERS } });
     state.peer = peer;
     peer.on("open", (id) => {
       slotIndex = i; state.myId = id;
@@ -2044,7 +2046,9 @@
       setT("fSub", v === "left" ? "Your partner closed the room" : v === "few" ? "Play with Azuzu while you wait?" : "Matching with someone who wants to play");
       setT("fPill", V.pill || "Azuzu joins in 8s if nobody shows up");
       const cp = $("chipPeer").querySelector("span").textContent, cl = $("chipLink").querySelector("span").textContent;
-      setT("fConn", `Seat: ${cp} · Link: ${cl}`);
+      const last = (logEl.textContent.trim().split("\n").pop() || "").replace(/^\[[^\]]*\]\s*/, "").slice(0, 90);
+      setT("fConn", `Seat: ${cp} · Link: ${cl}` + (last ? "\n" + last : ""));
+      $("fConn").style.whiteSpace = "pre-line";
       setT("fewBtn", v === "left" ? "New Match" : "Play with Azuzu");
       setT("fewLink", v === "left" ? "" : "Keep waiting");
       $("fewLink").style.display = v === "left" ? "none" : "flex";
