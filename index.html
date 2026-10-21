@@ -444,8 +444,8 @@
 <div id="vhProbe2" style="position:fixed;left:0;top:0;width:1px;height:100vh;visibility:hidden;pointer-events:none"></div>
 <div id="vhProbe3" style="position:fixed;left:0;top:0;width:1px;height:100dvh;visibility:hidden;pointer-events:none"></div>
 <div id="vhProbe4" style="position:fixed;left:0;top:0;width:1px;height:100lvh;visibility:hidden;pointer-events:none"></div>
-<div id="sizeHit" style="position:fixed;left:0;top:0;width:64px;height:48px;z-index:9998"></div>
-<pre id="sizeDbg" style="display:none;position:fixed;left:6px;top:50px;z-index:9999;margin:0;padding:6px 8px;background:rgba(0,0,0,.85);color:#0f8;font:10px/1.35 ui-monospace,Menlo,monospace;border-radius:6px;pointer-events:none"></pre>
+<div id="sizeHit" style="position:fixed;left:0;top:62px;width:84px;height:40px;z-index:9998"></div>
+<pre id="sizeDbg" style="display:none;position:fixed;left:6px;top:108px;z-index:9999;margin:0;padding:6px 8px;background:rgba(0,0,0,.85);color:#0f8;font:10px/1.35 ui-monospace,Menlo,monospace;border-radius:6px;pointer-events:none"></pre>
 <div id="app">
   <div id="phoneWrap">
     <div id="phone" data-screen="welcome" data-lay="" data-top="0" data-tab="0" data-hud="0">
@@ -494,7 +494,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Try with Azuzu</button><button class="tbtn gray" id="welLater">Maybe later</button></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Try with Azuzu</button><button class="tbtn gray" id="welLater">Maybe later</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#555;font-style:normal">build t3 · tap the left edge below the clock 5 times</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -1917,7 +1917,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t3  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
