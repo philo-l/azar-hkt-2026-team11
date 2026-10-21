@@ -986,7 +986,8 @@
   }
 
   // ---------- 두 기기 연결: 서버 없이 고정 ID 2개로 자리를 나눈다 ----------
-  const SLOTS = ["azar-t11-play-slot-a", "azar-t11-play-slot-b"];
+  // 자리를 8개로 늘렸다. 이전 접속이 서버에 남아 자리를 쥐고 있어도(유령 자리) 다른 자리로 들어가고, 번호가 큰 쪽이 작은 번호들에 차례로 걸어서 살아있는 상대를 찾는다.
+  const SLOTS = ["azar-t11-play-slot-a", "azar-t11-play-slot-b", "azar-t11-play-slot-c", "azar-t11-play-slot-d", "azar-t11-play-slot-e", "azar-t11-play-slot-f", "azar-t11-play-slot-g", "azar-t11-play-slot-h"];
   // 다른 네트워크(LTE 등)끼리 연결하려면 TURN 중계 서버가 필요하다. 아래 공개 테스트용 서버는 불안정할 수 있다.
   const ICE_SERVERS = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -994,6 +995,7 @@
     { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" }
   ];
   let slotIndex = -1, retryTimer = null, dialTimer = null;
+  state.dialTry = 0;
 
   function claimSlot(i = 0) {
     if (typeof Peer === "undefined") {
@@ -1016,9 +1018,9 @@
       log(`${i + 1}번 자리에 입장했습니다.`);
       startDialing();
     });
-    peer.on("connection", (c) => { if (state.matchMode === "mascot") { c.close(); return; } log("상대가 연결을 요청했습니다."); setupData(c); });
+    peer.on("connection", (c) => { if (state.matchMode === "mascot" || (state.data && state.data.open)) { c.close(); return; } log("상대가 연결을 요청했습니다."); setupData(c); });
     peer.on("call", (call) => {
-      if (state.matchMode === "mascot") return;
+      if (state.matchMode === "mascot" || (state.data && state.data.open && state.data.peer !== call.peer)) return;
       log("상대의 영상 호출 수신");
       call.answer(state.out);
       setupCall(call);
@@ -1045,27 +1047,28 @@
       if (err.type === "peer-unavailable") { state.dialAt = 0; return; }
       chip("chipPeer", "bad", "오류: " + err.type + ", 재시도 중");
       log("PeerJS 오류: " + err.type + " / " + err.message);
-      if (!(state.data && state.data.open)) retryTimer = setTimeout(() => claimSlot(0), 4000);
+      retryTimer = setTimeout(() => { if (!(state.data && state.data.open)) claimSlot(0); }, 4000);
     });
   }
 
   // 2번 자리가 1번 자리로 걸어서 연결한다. 1번은 기다리기만 한다.
   function startDialing() {
     clearInterval(dialTimer);
-    if (slotIndex !== 1) return;
+    if (slotIndex < 1) return;
     dialTimer = setInterval(() => {
       if (state.matchMode === "mascot") return;
       if (!state.peer || !state.myId) return;
       if (state.data && state.data.open) return;
-      if (Date.now() - (state.dialAt || 0) < 6000) return;
+      if (Date.now() - (state.dialAt || 0) < 3000) return;
       state.dialAt = Date.now();
-      connectToRemote(SLOTS[0]);
+      const target = state.dialTry++ % slotIndex;   // 나보다 작은 번호 자리들에 돌아가며 건다
+      connectToRemote(SLOTS[target]);
     }, 2000);
   }
 
   function connectToRemote(id) {
     chip("chipLink", "busy", "연결 중");
-    log("1번 자리에 연결 시도");
+    log(`${SLOTS.indexOf(id) + 1}번 자리에 연결 시도`);
     const c = state.peer.connect(id, { reliable: true });
     setupData(c);
     const call = state.peer.call(id, state.out);
@@ -1146,7 +1149,7 @@
 
   const linked = () => !!(state.data && state.data.open);
   const sendMsg = (m) => { if (linked()) state.data.send(m); };
-  const isHost = () => slotIndex === 0;
+  const isHost = () => (state.data && state.data.peer && SLOTS.indexOf(state.data.peer) >= 0 ? slotIndex < SLOTS.indexOf(state.data.peer) : slotIndex === 0);   // 번호가 작은 쪽이 호스트
   const playing = () => g.phase === "rules" || g.phase === "countdown" || g.phase === "play";
   const setMsg = (m, sub) => { $("gMsg").textContent = m; $("gSub").textContent = sub || ""; };
   const setBar = (p) => { $("gBar").style.width = Math.max(0, Math.min(1, p)) * 100 + "%"; };
