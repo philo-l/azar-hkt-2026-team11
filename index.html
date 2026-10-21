@@ -500,8 +500,9 @@
   #phone .avatar svg.bow { position: absolute; left: 47%; top: -2%; width: 42%; transform: rotate(12deg); }
   /* Finding: 레이더 위에 아바타들이 나타났다 사라진다(상대를 찾는 느낌) */
   #phone #s-finding .ravs { position: absolute; inset: 0; pointer-events: none; }
-  #phone #s-finding .ravatar { position: absolute; width: 52px; height: 52px; opacity: 0; animation: ravLife 2.8s ease-in-out forwards; }
+  #phone #s-finding .ravatar { position: absolute; width: 66px; height: 66px; opacity: 0; animation: ravLife 2.8s ease-in-out forwards; }
   @keyframes ravLife { 0% { scale: .2; opacity: 0; translate: 0 6px; } 16% { scale: 1.12; opacity: 1; } 28% { scale: 1; } 76% { opacity: 1; translate: 0 -8px; } 100% { scale: .65; opacity: 0; translate: 0 -14px; } }
+  #phone .avatar.png img { display: block; height: 94%; width: auto; margin: 0 auto; position: relative; top: 4%; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -2028,7 +2029,11 @@
   if (/[?&]debug/.test(location.search)) document.body.classList.add("showdebug");
 
   // ---------- 조각 만들기 ----------
+  // Figma Azoo 리소스 이미지(액세서리 포함). 이 조합이면 그림 그대로 쓰고, 아니면 SVG로 그린다.
+  const PNG_AV = { "#6ea8ff|cap": "blue", "#ffd54a|flower": "yellow", "#b59cff|bow": "purple", "#ff946d|crown": "orange", "#00f59e|hat": "green", "#ff7eb6|": "pink" };
   function avatar(color, acc) {
+    const png = PNG_AV[String(color).toLowerCase() + "|" + (acc || "")];
+    if (png) return `<span class="avatar png"><img src="assets/avatars/${png}.png" alt=""></span>`;
     const crown = '<svg class="crown" viewBox="0 0 40 30"><path d="M2 27L5 6L14 16L20 2L26 16L35 6L38 27Z" fill="#FFD93B" stroke="#111" stroke-width="3" stroke-linejoin="round"/></svg>';
     const hat = '<svg class="hat" viewBox="0 0 40 50"><rect x="9" y="2" width="22" height="34" rx="2" fill="#1c1c1c" stroke="#5a5a5a" stroke-width="1.6"/><rect x="3" y="33" width="34" height="9" rx="4.5" fill="#1c1c1c" stroke="#5a5a5a" stroke-width="1.6"/></svg>';
     const cap = '<svg class="cap" viewBox="0 0 48 32"><path d="M4 28C2 12 14 2 28 5C38 8 44 16 42 26Z" fill="#2f6bff"/><path d="M0 28C8 24 24 25 32 30L0 31Z" fill="#2f6bff"/></svg>';
@@ -2294,15 +2299,15 @@
     const box = $("radarAv"); if (box.children.length >= 4) return;
     let i; do { i = Math.floor(Math.random() * RAD_AVS.length); } while (i === radarLast); radarLast = i;
     // 이미 떠 있는 아바타와 겹치지 않는 자리를 고른다
-    const taken = [...box.children].map((e) => [parseFloat(e.style.left) + 26, parseFloat(e.style.top) + 26]);
+    const taken = [...box.children].map((e) => [parseFloat(e.style.left) + 33, parseFloat(e.style.top) + 33]);
     let cx = 0, cy = 0;
     for (let t = 0; t < 12; t++) {
       const ang = Math.random() * Math.PI * 2, r = 105 + Math.random() * 60;
       cx = 197 + Math.cos(ang) * r * 1.05; cy = 420 + Math.sin(ang) * r * 0.9;
-      if (taken.every((p) => Math.hypot(p[0] - cx, p[1] - cy) > 70)) break;
+      if (taken.every((p) => Math.hypot(p[0] - cx, p[1] - cy) > 78)) break;
     }
     const el = document.createElement("div"); el.className = "ravatar"; el.innerHTML = avatar(RAD_AVS[i][0], RAD_AVS[i][1]);
-    el.style.left = Math.max(6, Math.min(393 - 60, cx - 26)) + "px"; el.style.top = (cy - 26) + "px";
+    el.style.left = Math.max(6, Math.min(393 - 72, cx - 33)) + "px"; el.style.top = (cy - 33) + "px";
     el.firstChild.style.cssText += ";width:100%;height:100%";
     box.appendChild(el); setTimeout(() => el.remove(), 2900);
   }, 650);
