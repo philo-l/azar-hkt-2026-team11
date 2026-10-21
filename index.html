@@ -2219,6 +2219,8 @@
   // 폰이 다시 앞으로 오거나 네트워크가 돌아오면, 서버 연결이 끊겨 있고 상대와도 안 이어져 있을 때 자리를 새로 잡는다.
   const reclaim = () => { if (/nopeer/.test(location.search) || (state.data && state.data.open)) return; if (!state.peer || state.peer.disconnected || state.peer.destroyed) claimSlot(0); };
   document.addEventListener("visibilitychange", () => { if (!document.hidden) reclaim(); });
+  // 탭을 닫거나 나갈 때 자리를 바로 돌려준다(안 하면 중개 서버가 1분 안팎 그 자리를 잡고 있어서 "자리가 꽉 참"이 뜬다).
+  addEventListener("pagehide", () => { try { if (state.peer) state.peer.destroy(); } catch (e) {} });
   addEventListener("online", reclaim);
   setInterval(reclaim, 7000);
 </script>
