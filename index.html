@@ -593,7 +593,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t11</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t12</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -1595,6 +1595,24 @@
   drawMascot();
 
   // ---------- 고진감래 이모지 그리기 ----------
+  // 점수를 얻을 때는 같은 놀란 얼굴을 초록빛으로 색만 돌려서 쓴다
+  let shockGoodC = null;
+  function shockGood() {
+    if (shockGoodC) return shockGoodC;
+    const im = eimg("shock"); if (!im.complete || !im.naturalWidth) return im;
+    const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+    const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const r = p[i] / 255, g = p[i + 1] / 255, b = p[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, dd = mx - mn;
+      if (!dd) continue;
+      const sat = dd / (1 - Math.abs(2 * l - 1));
+      let h = mx === r ? ((g - b) / dd) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4; h = ((h * 60 + 95) % 360 + 360) % 360;
+      const k = (1 - Math.abs(2 * l - 1)) * sat, xx = k * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - k / 2; let R, G, B;
+      if (h < 60) [R, G, B] = [k, xx, 0]; else if (h < 120) [R, G, B] = [xx, k, 0]; else if (h < 180) [R, G, B] = [0, k, xx]; else if (h < 240) [R, G, B] = [0, xx, k]; else if (h < 300) [R, G, B] = [xx, 0, k]; else [R, G, B] = [k, 0, xx];
+      p[i] = (R + m) * 255; p[i + 1] = (G + m) * 255; p[i + 2] = (B + m) * 255;
+    }
+    x.putImageData(d, 0, 0); return (shockGoodC = c);
+  }
   const EIMG = {};
   const eimg = (k) => EIMG[k] || (EIMG[k] = Object.assign(new Image(), { src: EMO_SRC[k] }));
   function drawTargets() {
@@ -1635,7 +1653,8 @@
     fx.rings.push({ x: cx, y: cy, t: now });
     const n = Math.round(6 + 8 * pw);
     for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 70 + Math.random() * 90; fx.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: now }); }
-    if (!opts.good) { fx.shake = Math.max(fx.shake, 0.6 + 0.4 * pw); fx.impact = 1; fx.lastHit = now; state.flash = 1; }
+    if (opts.good) { fx.lastHit = now; fx.hitGood = true; }
+    if (!opts.good) { fx.hitGood = false; fx.shake = Math.max(fx.shake, 0.6 + 0.4 * pw); fx.impact = 1; fx.lastHit = now; state.flash = 1; }
   }
   function addCrack() {
     const f = faceBox(), rx = f.w * 0.6, ry = f.w * 0.8, lines = [];
@@ -1721,7 +1740,7 @@
     }
     // 데미지를 입으면 놀란 얼굴 이모지가 머리 위에서 튀어 올랐다 사라진다
     if (c && now - fx.lastHit < 900) {
-      const age = (now - fx.lastHit) / 900, k = age < 0.2 ? easeOutBack(age / 0.2) : 1, im = eimg("shock"), sz = c.fw * CW * 0.42 * k;
+      const age = (now - fx.lastHit) / 900, k = age < 0.2 ? easeOutBack(age / 0.2) : 1, im = fx.hitGood ? shockGood() : eimg("shock"), sz = c.fw * CW * 0.42 * k;
       cctx.globalAlpha = age > 0.65 ? 1 - (age - 0.65) / 0.35 : 1;
       if (im.complete && im.naturalWidth) cctx.drawImage(im, c.T[0] * CW - sz / 2, c.T[1] * CW - c.fw * CW * 0.62 - age * 14 - sz / 2, sz, sz);
       cctx.globalAlpha = 1;
@@ -2022,7 +2041,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t11  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t12  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
