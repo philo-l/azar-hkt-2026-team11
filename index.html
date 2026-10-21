@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Azar Play 스모크 테스트</title>
+<title>Azar Play</title>
+<meta name="theme-color" content="#000000">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f3f4ef;
@@ -127,15 +130,485 @@
     margin: 12px 0 0; max-height: 160px; overflow: auto; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
     background: #fbfbf9; border: 1px solid var(--line); border-radius: 12px; padding: 10px; white-space: pre-wrap;
   }
+
+  /* ===== Azar Play shell (Figma v3 기준, 393 x 852) ===== */
+  html, body { height: 100%; }
+  body { padding: 0; background: #000; overflow: hidden; }
+  #app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; gap: 28px; background: #000; }
+  #phoneWrap { position: relative; flex: none; background: #000; }
+  #app.desk { background: #1b1d1c; padding: 20px; }
+  #app.desk #phoneWrap { border-radius: 58px; padding: 10px; background: #000; box-shadow: 0 0 0 2px #3a3f3c, 0 30px 80px rgba(0,0,0,.6); }
+  #phone {
+    position: absolute; left: 0; top: 0; width: 393px; height: 852px; overflow: hidden;
+    background: #111; color: #fff; transform-origin: 0 0;
+    font-family: "Noto Sans", "Apple SD Gothic Neo", system-ui, sans-serif; font-size: 14px; line-height: 1.3;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  #app.desk #phone { left: 10px; top: 10px; border-radius: 48px; }
+  #debugPane { display: none; }
+  #app.desk #debugPane { display: block; width: min(520px, 42vw); height: 100%; overflow: auto; background: var(--bg); color: var(--ink); border-radius: 16px; padding: 16px; }
+  #app.desk #debugPane main { max-width: none; }
+  body.showdebug #app:not(.desk) { align-items: flex-start; justify-content: flex-start; flex-direction: column; overflow: auto; position: static; }
+  body.showdebug { overflow: auto; }
+  body.showdebug #debugPane { display: block; background: var(--bg); color: var(--ink); padding: 16px; width: 100%; }
+
+  #phone * { box-sizing: border-box; }
+  #phone button { all: unset; box-sizing: border-box; cursor: pointer; font-family: inherit; }
+  #phone button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  #phone svg { display: block; }
+  #phone .ico { width: 1em; height: 1em; fill: currentColor; flex: none; }
+
+  /* 영상 칸 (화면마다 위치가 바뀐다) */
+  #phone .cell { position: absolute; display: none; aspect-ratio: auto; z-index: 2; border-radius: 28px; background: #1d1d1d; overflow: hidden; }
+  #phone .cell .tag { display: none; }
+  #phone .cell .empty { font-size: 13px; padding: 12px; }
+  #remoteCell .avbg { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(180deg, #ffdacc, #ffc9b3); }
+  #remoteCell.has-stream .avbg { display: none; }
+  #remoteCell.mascot .avbg { display: none; }
+  #remoteCell:not(.has-stream) .empty { display: none; }
+  #phone[data-lay="ready"] #localCell { display: block; left: 76.5px; top: 352px; width: 240px; height: 240px; }
+  #phone[data-lay="camera"] #localCell { display: block; left: 76.5px; top: 84px; width: 240px; height: 240px; }
+  #phone[data-lay="game"] #remoteCell { display: block; left: 56.5px; top: 104px; width: 280px; height: 280px; }
+  #phone[data-lay="game"] #localCell { display: block; left: 56.5px; top: 394px; width: 280px; height: 280px; }
+  #phone[data-lay="chat"] #remoteCell { display: block; left: 0; top: 0; width: 393px; height: 752px; border-radius: 0 0 32px 32px; }
+  #phone[data-lay="chat"] #localCell { display: block; left: 267px; top: 68px; width: 110px; height: 180px; border-radius: 16px; z-index: 6; }
+  #phone .who { position: absolute; left: 16px; bottom: 14px; z-index: 5; pointer-events: none; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+  #phone .who b { display: block; font-size: 22px; font-weight: 900; line-height: 1.15; }
+  #phone .who span { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  #phone[data-lay="chat"] #remoteCell .who { display: none; }
+  #phone .cellfx { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+
+  /* 레이어 */
+  #phone .scr { position: absolute; inset: 0; z-index: 10; display: none; pointer-events: none; }
+  #phone .scr.on { display: block; }
+  #phone .scr .hit, #phone .scr button, #phone .scr .btn { pointer-events: auto; }
+  #phone .statusbar { position: absolute; left: 0; top: 0; width: 393px; height: 54px; z-index: 40; pointer-events: none; display: none; }
+  #app.desk #phone .statusbar, #phone.fakebars .statusbar { display: block; }
+  #phone .statusbar .time { position: absolute; left: 53px; top: 16px; font: 600 17px/22px "Noto Sans", system-ui; letter-spacing: -.2px; }
+  #phone .statusbar .lv { position: absolute; right: 24px; top: 20px; display: flex; gap: 6px; align-items: center; }
+  #phone .homebar { position: absolute; left: 129px; bottom: 8px; width: 135px; height: 5px; border-radius: 100px; background: #fff; z-index: 41; pointer-events: none; display: none; }
+  #app.desk #phone .homebar, #phone.fakebars .homebar { display: block; }
+
+  /* 상단 줄, 탭바 */
+  #phone .toprow { position: absolute; left: 0; top: 0; width: 100%; height: 100px; z-index: 12; pointer-events: none; display: none; }
+  #phone[data-top="1"] .toprow { display: block; }
+  #phone .me36 { position: absolute; left: 24px; top: 58px; width: 36px; height: 36px; border-radius: 50%; background: #3a3a3a center / cover no-repeat; overflow: hidden; display: grid; place-items: center; }
+  #phone .me36 svg { width: 22px; height: 22px; fill: #888; }
+  #phone .gemchip { position: absolute; top: 63.5px; height: 25px; border-radius: 12.5px; background: rgba(34,34,34,.75); display: flex; align-items: center; gap: 4px; padding: 0 9px 0 8px; font: 700 13px/1 "Noto Sans"; right: 69px; pointer-events: auto; }
+  #phone .gem { width: 16px; height: 16px; flex: none; }
+  #phone .bell { position: absolute; right: 24px; top: 58px; width: 36px; height: 36px; display: grid; place-items: center; }
+  #phone .bell .ico { width: 24px; height: 24px; }
+  #phone .bell i { position: absolute; right: 0; top: -2px; min-width: 20px; height: 14px; padding: 0 5px; border-radius: 7px; background: #ed3b50; font: 700 10px/14px "Noto Sans"; font-style: normal; text-align: center; }
+  #phone .tabbar { position: absolute; left: 0; top: 775px; width: 100%; height: 77px; z-index: 12; background: #111; display: none; border-radius: 20px 20px 0 0; border-top: 1px solid #1c1c1c; pointer-events: none; }
+  #phone[data-tab="1"] .tabbar { display: block; }
+  #phone .tabbar .tab { position: absolute; top: 4px; width: 78px; text-align: center; font-size: 10px; color: #8e8e93; }
+  #phone .tabbar .tab svg { width: 26px; height: 26px; margin: 4px auto 3px; fill: #555; }
+  #phone .tabbar .tab.sel { color: #fff; }
+  #phone .tabbar .tab.sel svg { fill: #fff; }
+  #phone .tabbar .tab.vc svg { fill: #6b6b70; }
+  #phone .tabbar .online { position: absolute; left: 22px; top: 22px; height: 12px; padding: 0 5px; border-radius: 6px; background: #00f59e; color: #111; font: 800 8px/12px "Noto Sans"; }
+
+  /* 버튼 */
+  #phone .btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 52px; border-radius: 26px; font: 700 16px/1 "Noto Sans"; background: #00f69d; color: #111; }
+  #phone .btn.dis { background: #333; color: #777; pointer-events: none; }
+  #phone .btn.white { background: #fff; color: #111; flex-direction: column; gap: 2px; font-size: 15px; }
+  #phone .btn.white small { display: flex; align-items: center; gap: 3px; font: 700 12px/1 "Noto Sans"; }
+  #phone .btn .ico { width: 20px; height: 20px; }
+  #phone .tbtn { display: flex; align-items: center; justify-content: center; height: 28px; font: 700 16px/1 "Noto Sans"; color: #fff; }
+  #phone .tbtn.gray { color: #8c8c8c; }
+  #phone .xbtn { width: 52px; height: 52px; border-radius: 26px; background: #333; display: grid; place-items: center; }
+  #phone .xbtn .ico { width: 24px; height: 24px; }
+  #phone .rnd { width: 44px; height: 44px; border-radius: 22px; background: rgba(0,0,0,.45); display: grid; place-items: center; }
+
+  /* 온보딩 */
+  #s-welcome .hero { position: absolute; left: 24px; top: 70px; width: 345px; height: 300px; border-radius: 28px; background: linear-gradient(180deg, #dcf7e8, #c7edfa); overflow: hidden; }
+  .avatar { position: relative; display: block; }
+  .avatar > svg.body { width: 100%; height: 100%; }
+  .avatar .crown { position: absolute; left: 16%; top: -9%; width: 40%; transform: rotate(-18deg); }
+  .avatar .hat { position: absolute; left: 34%; top: -10%; width: 30%; transform: rotate(8deg); }
+  #s-welcome .hero .avatar { position: absolute; left: 70px; top: 40px; width: 210px; height: 210px; }
+  #s-welcome h1, #s-camera h1, .h1 { position: absolute; left: 24px; margin: 0; font: 900 30px/1.2 "Noto Sans"; }
+  .p15 { position: absolute; left: 24px; width: 345px; margin: 0; font: 400 15px/1.45 "Noto Sans"; color: #aaa; }
+  .step { position: absolute; left: 24px; width: 345px; height: 40px; }
+  .step i { position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: #00f69d; color: #111; font: 900 15px/32px "Noto Sans"; text-align: center; font-style: normal; }
+  .step b { position: absolute; left: 44px; top: -2px; font: 700 16px/1.3 "Noto Sans"; }
+  .step span { position: absolute; left: 44px; top: 19px; font: 400 13px/1.3 "Noto Sans"; color: #aaa; }
+  .bottombtns { position: absolute; left: 0; bottom: 0; width: 100%; height: 148px; background: #222; }
+  #phone .bottombtns .btn { position: absolute; left: 24px; top: 16px; width: 345px; }
+  #phone .bottombtns .tbtn { position: absolute; left: 24px; top: 84px; width: 345px; }
+  .permrow { position: absolute; left: 24px; width: 345px; height: 52px; border-radius: 16px; background: #2e2e2e; }
+  .permrow b { position: absolute; left: 16px; top: 6px; font: 700 15px/1.3 "Noto Sans"; }
+  .permrow span { position: absolute; left: 16px; top: 27px; font: 400 12px/1.3 "Noto Sans"; color: #aaa; }
+  .permrow i { position: absolute; right: 16px; top: 15px; width: 22px; height: 22px; border-radius: 50%; background: #00f69d; }
+  .permrow.off i { background: #ed3b4f; }
+
+  /* Finding */
+  #s-finding .arrow { position: absolute; left: -60px; top: 80px; width: 560px; height: 420px; opacity: 1; }
+  #s-finding .ring { position: absolute; border-radius: 50%; background: #00f69e; }
+  #s-finding .mascot { position: absolute; left: 149px; top: 372px; width: 96px; height: 96px; }
+  #s-finding h2 { position: absolute; left: 0; width: 100%; top: 596px; margin: 0; text-align: center; font: 900 24px/1.3 "Noto Sans"; }
+  #s-finding p { position: absolute; left: 0; width: 100%; top: 634px; margin: 0; text-align: center; font: 400 15px/1.3 "Noto Sans"; color: #ccc; }
+  #s-finding .pill { position: absolute; left: 52px; top: 684px; width: 290px; height: 36px; border-radius: 18px; background: #454545; display: grid; place-items: center; font: 700 13px/1 "Noto Sans"; }
+  #s-finding .few { display: none; }
+  #phone[data-few="1"] #s-finding .few { display: block; }
+  #phone[data-few="1"] #s-finding .many { display: none; }
+  #s-finding .few .btn { position: absolute; left: 24px; top: 668px; width: 345px; }
+  #s-finding .few .tbtn { position: absolute; left: 24px; top: 730px; width: 345px; color: #aaa; font-weight: 400; font-size: 15px; }
+
+  /* 토스트 */
+  #phone .toast { position: absolute; left: 25px; top: 60px; width: 343px; height: 49px; border-radius: 10px; background: #f4f4f4; color: #111; font: 700 14px/49px "Noto Sans"; padding: 0 16px; z-index: 50; pointer-events: none; display: none; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  #phone .toast.on { display: block; }
+
+  /* Ready */
+  #s-ready .pcard { position: absolute; left: 76.5px; top: 104px; width: 240px; height: 240px; border-radius: 28px; overflow: hidden; background: #ffdacc; }
+  #s-ready .pcard::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%); z-index: 1; }
+  #s-ready .pcard .avatar { position: absolute; left: 36px; top: 42px; width: 168px; height: 168px; }
+  #s-ready .badge { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 3; height: 26px; border-radius: 13px; background: rgba(60,60,60,.7); padding: 0 12px; display: flex; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; white-space: nowrap; }
+  #s-ready .badge .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; border-right-color: transparent; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #s-ready .badge.ok { background: #00f59e; color: #111; }
+  #s-ready .pname { position: absolute; left: 0; width: 100%; top: 136px; text-align: center; font: 900 22px/30px "Noto Sans"; z-index: 3; }
+  #s-ready .pinfo { position: absolute; left: 0; width: 100%; top: 170px; display: flex; justify-content: center; align-items: center; gap: 6px; font: 400 12px/1 "Noto Sans"; z-index: 3; }
+  #s-ready .ichips { position: absolute; left: 0; width: 100%; top: 204px; display: flex; justify-content: center; gap: 6px; z-index: 3; margin: 0; }
+  #s-ready .ichips span { height: 24px; border-radius: 12px; background: #000; padding: 0 9px; display: flex; align-items: center; gap: 4px; font: 700 11px/1 "Noto Sans"; }
+  #s-ready .glow, #s-ready .glowme { position: absolute; border-radius: 28px; pointer-events: none; display: none; z-index: 4; border: 3px solid #00f59e; box-shadow: 0 0 24px 2px rgba(0,245,158,.55), inset 0 0 40px rgba(0,245,158,.35); }
+  #s-ready .glow { left: 76.5px; top: 104px; width: 240px; height: 240px; }
+  #s-ready .glowme { left: 76.5px; top: 352px; width: 240px; height: 240px; z-index: 5; }
+  #phone[data-pr="1"] #s-ready .glow { display: block; }
+  #phone[data-mr="1"] #s-ready .glowme { display: block; }
+  #phone[data-pr="1"] #s-ready .pcard { background: linear-gradient(180deg, #ffdacc 0%, #5be6a8 70%, #14b57a 100%); }
+  #s-ready .mychip { position: absolute; left: 88.5px; top: 364px; height: 26px; border-radius: 13px; background: rgba(0,0,0,.6); padding: 0 10px 0 8px; display: flex; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; z-index: 6; }
+  #s-ready .mychip .ico { width: 16px; height: 16px; }
+  #s-ready .wand { position: absolute; left: 88.5px; top: 536px; z-index: 6; width: 44px; height: 44px; border-radius: 22px; background: rgba(0,0,0,.45); display: grid; place-items: center; }
+  #s-ready .wand .ico { width: 20px; height: 20px; }
+  #s-ready .myready { position: absolute; left: 233px; top: 548px; z-index: 6; height: 26px; border-radius: 13px; background: #00f59e; color: #111; padding: 0 12px 0 8px; display: none; align-items: center; gap: 6px; font: 700 12px/1 "Noto Sans"; }
+  #phone[data-mr="1"] #s-ready .myready { display: flex; }
+  #s-ready h3 { position: absolute; left: 0; width: 100%; top: 602px; margin: 0; text-align: center; font: 700 22px/33px "Noto Sans"; }
+  #s-ready .xbtn { position: absolute; left: 24px; top: 640px; }
+  #s-ready .rbtn { position: absolute; left: 84px; top: 640px; width: 285px; }
+  #s-ready .consent { position: absolute; left: 24px; width: 345px; top: 702px; text-align: center; font: 400 11px/1.4 "Noto Sans"; color: #8f8f8f; }
+
+  /* 규칙 시트 */
+  #s-rules .dim { position: absolute; inset: 0; background: rgba(0,0,0,.6); pointer-events: auto; }
+  #s-rules .sheet { position: absolute; left: 0; bottom: 0; width: 100%; height: 520px; background: #222; border-radius: 24px 24px 0 0; overflow: hidden; pointer-events: auto; }
+  #s-rules .sheet .grab { position: absolute; left: 176.5px; top: 10px; width: 40px; height: 6px; border-radius: 3px; background: #444; }
+  #s-rules h2 { position: absolute; left: 24px; top: 24px; margin: 0; font: 900 28px/1.3 "Noto Sans"; }
+  #s-rules .how { position: absolute; left: 24px; top: 68px; font: 600 15px/1.4 "Noto Sans"; color: #aaa; }
+  #s-rules .tile { position: absolute; top: 102px; width: 105px; height: 208px; border-radius: 20px; background: #2e2e2e; text-align: center; overflow: hidden; }
+  #s-rules .tile .em { margin-top: 20px; font-size: 56px; line-height: 64px; height: 64px; }
+  #s-rules .tile b { display: block; margin: 14px 8px 0; font: 700 15px/1.3 "Noto Sans"; }
+  #s-rules .tile span { display: block; margin: 8px 8px 0; font: 400 12px/1.4 "Noto Sans"; color: #aaa; }
+  #s-rules .reward { position: absolute; left: 24px; top: 326px; width: 345px; height: 44px; border-radius: 14px; background: rgba(0,245,158,.14); color: #00f59e; display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 15px/1 "Noto Sans"; }
+  #s-rules .btn { position: absolute; left: 24px; top: 395px; width: 345px; }
+  #s-rules .tbtn { position: absolute; left: 24px; top: 459px; width: 345px; color: #8c8c8c; }
+  #s-rules .ringc { position: static; width: 20px; height: 20px; display: block; flex: none; }
+
+  /* 게임/결과 */
+  #phone .hud { position: absolute; left: 0; top: 54px; width: 100%; height: 40px; z-index: 14; display: none; }
+  #phone[data-hud="1"] .hud { display: block; }
+  #phone .hud .rnd2 { position: absolute; top: 4px; width: 40px; height: 32px; border-radius: 16px; background: #333; display: grid; place-items: center; pointer-events: auto; }
+  #phone .hud .rnd2 .ico { width: 16px; height: 16px; }
+  #phone .hud .timer { position: absolute; left: 0; width: 100%; top: -1px; text-align: center; font: 900 22px/29px "Noto Sans"; font-variant-numeric: tabular-nums; }
+  #phone .hud .timer small { display: block; font: 400 10px/13px "Noto Sans"; color: #ccc; }
+  #phone .hud.warn .timer, #phone .hud.warn .timer small { color: #ed3b4f; }
+  #phone .hud.crit .timer { font-size: 26px; }
+  #phone .hud.crit .timer, #phone .hud.crit .timer small { color: #ed3b4f; }
+  #phone .hud .gemchip { top: 8px; right: 16px; }
+  #s-game .count { position: absolute; left: 0; width: 100%; top: 270px; text-align: center; font: 900 120px/1 "Noto Sans"; text-shadow: 0 4px 30px rgba(0,0,0,.6); z-index: 20; display: none; }
+  #phone[data-cd="1"] #s-game .count { display: block; }
+  #s-game .lbl { position: absolute; left: 56.5px; font: 800 12px/1 "Noto Sans"; }
+  #s-game .gmsg2 { position: absolute; left: 24px; width: 345px; top: 690px; text-align: center; font: 700 16px/1.3 "Noto Sans"; }
+  #s-game .gsub2 { position: absolute; left: 24px; width: 345px; top: 716px; text-align: center; font: 400 12px/1.4 "Noto Sans"; color: #aaa; }
+  #s-game .bars { position: absolute; left: 56.5px; width: 280px; top: 752px; }
+  #s-game .bars div { height: 6px; border-radius: 3px; background: #2e2e2e; margin-bottom: 6px; overflow: hidden; }
+  #s-game .bars div span { display: block; height: 100%; width: 0; background: #ff6b6b; }
+  #s-game .bars div.op span { background: #ffb020; }
+  #s-after .rchip { position: absolute; left: 50%; top: 345px; transform: translateX(-50%); min-width: 150px; padding: 10px 22px 12px; border-radius: 20px; background: rgba(34,34,34,.92); text-align: center; z-index: 22; }
+  #s-after .rchip b { display: block; font: 900 22px/1.2 "Noto Sans"; }
+  #s-after .rchip span { display: block; font: 400 12px/1.3 "Noto Sans"; color: #ccc; }
+  #s-after .rchip em { display: none; margin-top: 2px; font: 900 20px/1.3 "Noto Sans"; font-style: normal; color: #00f59e; align-items: center; justify-content: center; gap: 4px; }
+  #s-after .rchip.win { border: 2px solid #00f59e; box-shadow: 0 0 24px 2px rgba(0,245,158,.55); }
+  #s-after .rchip.win em { display: flex; }
+  #s-after .rbar { position: absolute; left: 0; top: 684px; width: 100%; height: 64px; overflow: hidden; }
+  #s-after .rbar .wandb { position: absolute; left: 16px; top: 10px; width: 44px; height: 44px; border-radius: 22px; background: #2a2a2a; display: grid; place-items: center; }
+  #s-after .rbar .wandb .ico { width: 20px; height: 20px; }
+  #s-after .rbar .sep { position: absolute; left: 72px; top: 23px; width: 2px; height: 18px; background: #444; }
+  #s-after .rbar .emo { position: absolute; top: 8px; width: 48px; height: 48px; display: grid; place-items: center; font-size: 32px; pointer-events: auto; }
+  #s-after .bb { position: absolute; left: 16px; top: 764px; width: 361px; display: flex; gap: 8px; }
+  #s-after .bb .btn { flex: 1; }
+  #s-after .bb .btn.white { flex: 1; }
+
+  /* 시트(결제), 다이얼로그 */
+  #s-sheet .dim, #s-exit .dim { position: absolute; inset: 0; background: rgba(0,0,0,.62); pointer-events: auto; }
+  #s-sheet .sh { position: absolute; left: 0; bottom: 0; width: 100%; height: 237px; background: #222; border-radius: 24px 24px 0 0; pointer-events: auto; }
+  #s-sheet .sh .grab { position: absolute; left: 176.5px; top: 10px; width: 40px; height: 6px; border-radius: 3px; background: #444; }
+  #s-sheet h2 { position: absolute; left: 24px; top: 31px; margin: 0; font: 900 24px/1.3 "Noto Sans"; }
+  #s-sheet p { position: absolute; left: 24px; width: 345px; top: 70px; margin: 0; font: 400 14px/1.4 "Noto Sans"; color: #ccc; padding-left: 24px; }
+  #s-sheet p::before { content: "i"; position: absolute; left: 0; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #888; color: #222; font: 800 11px/16px "Noto Sans"; text-align: center; }
+  #s-sheet .btn { position: absolute; left: 24px; top: 116px; width: 345px; }
+  #s-sheet .tbtn { position: absolute; left: 24px; top: 180px; width: 345px; color: #8c8c8c; }
+  #s-exit .dlg { position: absolute; left: 46px; top: 330px; width: 301px; padding: 24px 20px 20px; border-radius: 24px; background: #2a2a2a; text-align: center; pointer-events: auto; }
+  #s-exit .dlg b { display: block; font: 900 20px/1.3 "Noto Sans"; }
+  #s-exit .dlg span { display: block; margin-top: 6px; font: 400 14px/1.4 "Noto Sans"; color: #ccc; }
+  #s-exit .dlg .row2 { display: flex; gap: 8px; margin-top: 18px; }
+  #s-exit .dlg .row2 .btn { flex: 1; height: 44px; font-size: 15px; background: #444; color: #fff; }
+  #s-exit .dlg .row2 .btn.m { background: #00f69d; color: #111; }
+
+  /* 비디오챗 */
+  #s-chat .dimt { position: absolute; left: 0; top: 0; width: 100%; height: 130px; background: linear-gradient(180deg, rgba(0,0,0,.4), transparent); }
+  #s-chat .dimb { position: absolute; left: 0; top: 600px; width: 100%; height: 152px; background: linear-gradient(0deg, rgba(0,0,0,.65), transparent); }
+  #s-chat .cx { position: absolute; left: 6px; top: 58px; width: 44px; height: 44px; display: grid; place-items: center; }
+  #s-chat .cx .ico { width: 24px; height: 24px; }
+  #s-chat .cs { position: absolute; left: 50px; top: 58px; width: 44px; height: 44px; display: grid; place-items: center; }
+  #s-chat .cs .ico { width: 22px; height: 22px; }
+  #s-chat .nm { position: absolute; left: 16px; top: 672px; font: 900 32px/1.2 "Noto Sans"; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+  #s-chat .nm2 { position: absolute; left: 16px; top: 714px; display: flex; align-items: center; gap: 6px; font: 400 12px/1 "Noto Sans"; }
+  #s-chat .follow { position: absolute; left: 283px; top: 684px; width: 94px; height: 32px; border-radius: 16px; background: #00f69d; color: #111; font: 800 14px/32px "Noto Sans"; text-align: center; }
+  #s-chat .bar { position: absolute; left: 0; top: 752px; width: 100%; height: 100px; background: #111; }
+  #s-chat .bar .rb { position: absolute; top: 12px; width: 40px; height: 40px; border-radius: 20px; background: #2a2a2a; display: grid; place-items: center; }
+  #s-chat .bar .rb .ico { width: 20px; height: 20px; }
+  #s-chat .bar .emo { position: absolute; top: 8px; width: 48px; height: 48px; display: grid; place-items: center; font-size: 32px; pointer-events: auto; }
+
+  /* 페이지형 */
+  #s-gems h2.t { position: absolute; left: 0; width: 100%; top: 66px; margin: 0; text-align: center; font: 900 20px/1.3 "Noto Sans"; }
+  #s-gems .bal { position: absolute; left: 24px; top: 124px; width: 345px; height: 132px; border-radius: 24px; background: rgba(0,245,158,.14); border: 2px solid #00f59e; }
+  #s-gems .bal small { position: absolute; left: 24px; top: 18px; font: 600 14px/1.4 "Noto Sans"; color: #ccc; }
+  #s-gems .bal b { position: absolute; left: 68px; top: 46px; font: 900 40px/1.3 "Noto Sans"; }
+  #s-gems .bal .gem { position: absolute; left: 24px; top: 58px; width: 36px; height: 36px; }
+  #s-gems .rec { position: absolute; left: 24px; top: 284px; font: 600 15px/1.4 "Noto Sans"; color: #aaa; }
+  #s-gems .grow { position: absolute; left: 24px; width: 345px; height: 60px; border-radius: 16px; background: #2e2e2e; }
+  #s-gems .grow b { position: absolute; left: 16px; top: 8px; font: 700 15px/1.3 "Noto Sans"; }
+  #s-gems .grow span { position: absolute; left: 16px; top: 33px; font: 400 12px/1.3 "Noto Sans"; color: #aaa; }
+  #s-gems .grow em { position: absolute; right: 16px; top: 16px; font: 900 18px/1.3 "Noto Sans"; font-style: normal; }
+  #s-gems .grow em.p { color: #00f59e; }
+  #phone .reactbubble { position: absolute; font-size: 44px; animation: rise 1.8s ease-out forwards; }
+
+  #s-finding .mascot .avatar { width: 100%; height: 100%; }
+  #s-ready .pcard .avatar-slot { position: static; }
+  #phone .avatar svg.crown, #phone .avatar svg.hat { position: absolute; }
+
+  #phone[data-lay="ready"] #localCell .who, #phone[data-lay="camera"] #localCell .who, #phone[data-lay="chat"] #localCell .who { display: none; }
+  #phone .cell .empty { display: none !important; }
+
+  #phone #s-rules, #phone #s-sheet, #phone #s-exit { z-index: 30; }
+
+  #phone[data-chipwin="1"] #remoteCell .who { bottom: 64px; }
+  #s-chat .bar .sep { position: absolute; left: 212px; top: 25px; width: 2px; height: 18px; background: #444; }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>Azar Play 스모크 테스트</h1>
-    <p class="lead">카메라, 얼굴 인식, 두 기기 연결이 이 기기와 브라우저에서 되는지 확인합니다. 카메라 허용만 눌러주세요. 얼굴 기준선은 자동으로 측정됩니다. 두 기기를 연결해보려면 아래 링크를 상대에게 보내고, 마지막에 결과 보고서를 복사해서 보내주세요.</p>
-  </header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="azg" x1="104.831" y1="36.5352" x2="48.5342" y2="63.2031" gradientUnits="userSpaceOnUse"><stop stop-color="#494949"/><stop offset="1"/></linearGradient>
+    <symbol id="azoo" viewBox="0 11.83 117.46 117.46">
+      <path d="M58.3616 116.256C83.3967 116.256 103.692 95.9614 103.692 70.9263C103.692 45.8912 83.3967 25.5962 58.3616 25.5962C33.3265 25.5962 13.0315 45.8912 13.0315 70.9263C13.0315 95.9614 33.3265 116.256 58.3616 116.256Z" style="fill:var(--azc,#FF946D)"/>
+      <path d="M60.1918 53.5109C61.1928 51.0941 60.0452 48.3233 57.6283 47.3222C55.2115 46.3211 52.4407 47.4688 51.4396 49.8856C50.4385 52.3025 51.5862 55.0733 54.003 56.0744C56.4199 57.0754 59.1907 55.9278 60.1918 53.5109Z" fill="#000"/>
+      <path d="M79.5911 49.5147C81.7044 49.1249 83.0776 46.9651 82.6581 44.6906C82.2386 42.4162 80.1853 40.8883 78.072 41.2781C75.9586 41.6679 74.5854 43.8277 75.0049 46.1021C75.4244 48.3766 77.4777 49.9044 79.5911 49.5147Z" fill="#000"/>
+      <path d="M61.7007 65.6239C60.2996 65.6739 59.0684 66.6262 58.9273 67.7895C58.781 68.979 59.8317 69.9388 61.2717 69.9311C62.7739 69.9231 64.2384 69.8013 65.7 69.6091C67.1588 69.4117 68.6108 69.146 70.047 68.7942C72.9196 68.0977 75.7559 67.0925 78.3929 65.6976C78.7247 65.525 79.0455 65.3444 79.3722 65.1576L79.8608 64.8659L80.339 64.5626C80.971 64.1517 81.5785 63.7138 82.1563 63.2525C82.7341 62.7912 83.2743 62.298 83.7819 61.788C84.2879 61.2773 84.764 60.748 85.1918 60.1978C85.6213 59.6483 86.0141 59.0831 86.3665 58.5044C86.7125 57.9238 87.0213 57.3312 87.2813 56.7272C87.7864 55.5136 88.1508 54.2713 88.1461 52.9421C88.1446 52.3543 87.6307 51.8757 86.8969 51.8308C86.0694 51.7788 85.2757 52.2957 85.1234 52.9852L85.1104 53.0454C85.0111 53.4926 84.8477 53.9678 84.6458 54.4374C84.4414 54.9087 84.1962 55.3773 83.9176 55.8366C83.642 56.2963 83.3295 56.7452 82.991 57.1792C82.6559 57.6148 82.291 58.0377 81.9017 58.4407C81.1223 59.2493 80.2556 59.9945 79.3037 60.6487C78.8305 60.978 78.3389 61.287 77.8299 61.5744L77.4455 61.7852L77.0542 61.986C76.7879 62.1184 76.5156 62.2559 76.2387 62.3815C74.0287 63.4053 71.6186 64.1476 69.155 64.684C67.9221 64.9478 66.6737 65.1621 65.4269 65.3178C64.1812 65.4781 62.9293 65.5782 61.7305 65.6187L61.7012 65.6202L61.7007 65.6239Z" fill="#000"/>
+      <path d="M116.956 55.9462C116.57 54.499 115.973 53.1163 115.185 51.8425C114.425 50.62 113.516 49.496 112.481 48.4959C110.534 46.6578 108.304 45.1451 105.876 44.016C103.606 42.9369 101.239 42.0757 98.8065 41.4441C96.456 40.8199 94.0681 40.3467 91.6572 40.0275L91.5156 40.0054C93.9948 42.6652 96.1468 45.6123 97.9255 48.7836C99.5625 49.2554 101.158 49.8594 102.698 50.5898C104.413 51.3821 105.993 52.4414 107.377 53.7283C107.982 54.3121 108.515 54.966 108.966 55.6761C109.383 56.3416 109.699 57.0651 109.904 57.8231C110.106 58.5774 110.193 59.358 110.161 60.1383C110.149 60.5463 110.109 60.9531 110.042 61.3557C109.971 61.7775 109.873 62.1945 109.749 62.604C109.188 64.402 108.334 66.0951 107.222 67.6151C106.162 69.0951 104.977 70.4814 103.68 71.7586C103.517 71.9223 103.357 72.0817 103.189 72.2411C100.062 75.1907 96.6244 77.7926 92.9366 80.0012C89.1795 82.2706 85.2685 84.2749 81.2322 85.9995C79.2047 86.8671 77.1507 87.6787 75.0701 88.4342C72.9896 89.1897 70.8883 89.8832 68.7664 90.5148C66.1281 91.3116 63.4646 92.0228 60.7761 92.6485L62.9496 90.5945C63.478 90.1248 63.7981 89.4646 63.8396 88.7589C63.8811 88.0533 63.6406 87.36 63.171 86.8317C62.7014 86.3034 62.0411 85.9832 61.3354 85.9417C60.6298 85.9002 59.9366 86.1408 59.4082 86.6104L49.1116 95.2603C48.7618 95.5558 48.4833 95.9265 48.297 96.3448C48.1341 96.7062 48.0442 97.0963 48.0325 97.4925C48.0209 97.8888 48.0878 98.2834 48.2293 98.6538C48.3709 99.0241 48.5843 99.3627 48.8573 99.6502C49.1302 99.9377 49.4574 100.168 49.8199 100.329L62.0421 105.765C62.6791 106.071 63.4116 106.112 64.0787 105.879C64.7457 105.645 65.2926 105.156 65.5991 104.519C65.9055 103.882 65.9464 103.149 65.7127 102.482C65.479 101.815 64.9898 101.268 64.3529 100.962L61.7765 99.6339C69.4056 97.9846 76.8645 95.6282 84.0565 92.5953C88.4118 90.7464 92.632 88.5941 96.686 86.1544C97.7042 85.5347 98.7105 84.8957 99.7051 84.2376C100.546 83.6769 101.378 83.097 102.202 82.4979L102.644 82.1703C103.609 81.4532 104.561 80.7006 105.495 79.9259C106.429 79.1513 107.341 78.3368 108.227 77.478C110.048 75.7482 111.7 73.8494 113.162 71.8073C113.922 70.7398 114.606 69.62 115.208 68.4562C115.839 67.2406 116.352 65.9672 116.739 64.6536C116.94 63.9698 117.101 63.2752 117.222 62.573C117.345 61.8514 117.419 61.1223 117.443 60.3906C117.503 58.8932 117.339 57.3951 116.956 55.9462Z" fill="url(#azg)"/>
+      <path d="M6.39275 67.4824C4.69468 69.4196 3.24479 71.5609 2.07666 73.8569C1.46887 75.0798 0.978263 76.3575 0.611396 77.6728C0.23096 79.0568 0.025723 80.483 0.000500021 81.9181C-0.00546101 82.6583 0.0418835 83.398 0.14216 84.1315C0.182001 84.5033 0.261682 84.8663 0.328083 85.2293C0.367924 85.4152 0.41662 85.5923 0.460888 85.7738C0.505155 85.9553 0.553848 86.1323 0.611396 86.3094C0.832564 87.0174 1.11856 87.7035 1.46576 88.359C1.81161 88.9994 2.21304 89.6083 2.66542 90.1784C3.10407 90.73 3.58351 91.248 4.09969 91.7278C4.59565 92.2024 5.12048 92.646 5.67119 93.0558C6.73439 93.8303 7.92141 94.4186 9.18162 94.7955C9.59163 94.9132 10.0282 94.8991 10.4298 94.7553C10.8314 94.6115 11.1777 94.3452 11.4198 93.994C11.6619 93.6428 11.7876 93.2245 11.7792 92.798C11.7708 92.3715 11.6287 91.9585 11.3729 91.6171L11.302 91.5242C10.638 90.6388 9.97401 89.8508 9.42066 89.0717C8.86901 88.3431 8.40403 87.5528 8.03509 86.7167L7.91113 86.4201C7.86686 86.3227 7.83588 86.2253 7.79604 86.1279C7.71193 85.9332 7.65881 85.7384 7.57912 85.548C7.49944 85.3577 7.44633 85.1629 7.39763 84.9725C7.37107 84.8752 7.34008 84.7778 7.31352 84.6848C7.28696 84.5918 7.26483 84.49 7.23827 84.3971C7.02862 83.6269 6.9273 82.8313 6.93724 82.0332C6.96026 81.1869 7.08814 80.3468 7.31795 79.532C7.57205 78.6531 7.90697 77.7995 8.3184 76.9822C9.2378 75.2195 10.3707 73.5766 11.6916 72.0906C12.1343 71.5948 12.5769 71.1079 13.0196 70.6298C13.0425 67.1078 13.4748 63.6004 14.3078 60.1782C13.4018 60.8688 12.5165 61.5859 11.6518 62.3296C9.76803 63.9085 8.00974 65.6313 6.39275 67.4824Z" fill="#494949"/>
+    </symbol>
+    <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M18.7071 8.79633C18.7071 10.0523 19.039 10.7925 19.7695 11.6456C20.3231 12.2741 20.5 13.0808 20.5 13.956C20.5 14.8302 20.2128 15.6601 19.6373 16.3339C18.884 17.1417 17.8215 17.6573 16.7372 17.747C15.1659 17.8809 13.5937 17.9937 12.0005 17.9937C10.4063 17.9937 8.83505 17.9263 7.26375 17.747C6.17846 17.6573 5.11602 17.1417 4.36367 16.3339C3.78822 15.6601 3.5 14.8302 3.5 13.956C3.5 13.0808 3.6779 12.2741 4.23049 11.6456C4.98384 10.7925 5.29392 10.0523 5.29392 8.79633V8.3703C5.29392 6.68834 5.71333 5.58852 6.577 4.51186C7.86106 2.9417 9.91935 2 11.9558 2H12.0452C14.1254 2 16.2502 2.98702 17.5125 4.62466C18.3314 5.67916 18.7071 6.73265 18.7071 8.3703V8.79633Z"/><path d="M9.07367 20.0608C9.07367 19.5573 9.53582 19.3266 9.96318 19.2279C10.4631 19.1222 13.5093 19.1222 14.0092 19.2279C14.4366 19.3266 14.8987 19.5573 14.8987 20.0608C14.8738 20.5402 14.5926 20.9653 14.204 21.2352C13.7001 21.628 13.1088 21.8767 12.4906 21.9664C12.1487 22.0107 11.8128 22.0117 11.4828 21.9664C10.8636 21.8767 10.2723 21.628 9.76938 21.2342C9.37978 20.9653 9.09852 20.5402 9.07367 20.0608Z"/></symbol>
+    <symbol id="ic-eyeslash" viewBox="0 0 16 16"><path d="M15.4694 6.67716C15.2585 6.34261 15.033 6.02987 14.8003 5.73896C14.5312 5.39713 14.0221 5.36804 13.7166 5.6735L11.5348 7.85537C11.6948 8.33538 11.7239 8.88812 11.5784 9.46268C11.3239 10.4882 10.4948 11.3173 9.46928 11.5718C8.89472 11.7173 8.34198 11.6882 7.86197 11.5282C7.86197 11.5282 6.82195 12.5682 6.07284 13.3173C5.70919 13.681 5.82556 14.321 6.31284 14.5101C7.09104 14.8083 7.89833 14.961 8.72744 14.961C10.022 14.961 11.2802 14.5828 12.4293 13.8773C13.6003 13.15 14.6548 12.0809 15.5058 10.7209C16.1967 9.62268 16.1603 7.77537 15.4694 6.67716Z"/><path d="M10.1965 7.25899L7.25828 10.1972C6.88736 9.81905 6.64736 9.2954 6.64736 8.72812C6.64736 7.58627 7.57829 6.64807 8.7274 6.64807C9.29469 6.64807 9.81834 6.88807 10.1965 7.25899Z"/><path d="M13.273 4.18256L10.8075 6.64807C10.2766 6.10988 9.54204 5.78987 8.72748 5.78987C7.09835 5.78987 5.78923 7.10626 5.78923 8.72812C5.78923 9.54268 6.11651 10.2772 6.64743 10.8082L4.1892 13.2737H4.18192C3.37463 12.6191 2.6328 11.7827 2.00006 10.7936C1.27277 9.65177 1.27277 7.79719 2.00006 6.65534C2.84371 5.33168 3.87646 4.29165 5.02558 3.57891C6.1747 2.88071 7.43291 2.49525 8.72748 2.49525C10.3493 2.49525 11.9203 3.09163 13.273 4.18256Z"/><path d="M10.8076 8.72812C10.8076 9.86996 9.87665 10.8082 8.72754 10.8082C8.6839 10.8082 8.64754 10.8082 8.6039 10.7936L10.793 8.60448C10.8076 8.64812 10.8076 8.68448 10.8076 8.72812Z"/><path d="M15.833 1.6225C15.6148 1.40432 15.2585 1.40432 15.0403 1.6225L1.62178 15.0483C1.40359 15.2664 1.40359 15.6228 1.62178 15.841C1.73087 15.9428 1.86906 16.001 2.01452 16.001C2.15997 16.001 2.29816 15.9428 2.40725 15.8337L15.833 2.40797C16.0585 2.18979 16.0585 1.84069 15.833 1.6225Z"/></symbol>
+    <symbol id="ic-wand" viewBox="0 0 16 16"><path d="M12.3306 1.87655L13.0474 2.19787C13.1533 2.24536 13.2215 2.35065 13.2215 2.46667C13.2215 2.5827 13.1534 2.68799 13.0474 2.73544L12.3307 3.05669C12.0996 3.16032 11.9152 3.34469 11.8116 3.57584L11.4903 4.29258C11.4429 4.39853 11.3376 4.46667 11.2215 4.46667C11.1055 4.46667 11.0002 4.39849 10.9528 4.29258L10.6315 3.57584C10.5279 3.34469 10.3435 3.16032 10.1124 3.05669L9.39564 2.73544C9.28968 2.68803 9.22154 2.58274 9.22154 2.46667C9.22154 2.35065 9.28972 2.2454 9.39564 2.19791L10.1124 1.87662C10.3435 1.77303 10.5279 1.58866 10.6315 1.35751L10.9528 0.640774C11.0002 0.53482 11.1055 0.466675 11.2215 0.466675C11.3376 0.466675 11.4428 0.53482 11.4903 0.640735L11.8115 1.35747C11.9151 1.58862 12.0995 1.77299 12.3306 1.87655Z"/><path d="M13.9491 10.372L14.7853 10.7468C14.9089 10.8021 14.9884 10.925 14.9884 11.0603C14.9884 11.1957 14.9089 11.3185 14.7853 11.3739L13.9491 11.7487C13.6794 11.8696 13.4643 12.0847 13.3434 12.3543L12.9686 13.1905C12.9133 13.3142 12.7905 13.3937 12.6551 13.3937C12.5197 13.3937 12.3969 13.3141 12.3415 13.1905L11.9667 12.3543C11.8458 12.0847 11.6307 11.8696 11.3611 11.7487L10.5249 11.3739C10.4013 11.3186 10.3218 11.1957 10.3218 11.0603C10.3218 10.925 10.4013 10.8021 10.5249 10.7468L11.3611 10.372C11.6307 10.2511 11.8458 10.036 11.9667 9.7663L12.3415 8.9301C12.3968 8.80649 12.5197 8.72699 12.6551 8.72699C12.7905 8.72699 12.9133 8.80653 12.9686 8.9301L13.3434 9.7663C13.4643 10.036 13.6794 10.2511 13.9491 10.372Z"/><path d="M4.9756 5.01191L4.41861 4.76228C4.22683 4.67634 4.07389 4.52338 3.98793 4.3316L3.7383 3.77458C3.71013 3.71175 3.64769 3.67131 3.57887 3.67131C3.51002 3.67131 3.44758 3.71173 3.41944 3.77458L3.1698 4.33157C3.08387 4.52335 2.93092 4.67632 2.73915 4.76225L2.18215 5.01189C2.11933 5.04004 2.07888 5.10249 2.07888 5.17132C2.07888 5.24017 2.11933 5.30263 2.18215 5.33075L2.73915 5.58039C2.93092 5.66632 3.08387 5.81929 3.16982 6.01106L3.41944 6.56803C3.44761 6.63086 3.51004 6.67131 3.57887 6.67131C3.64774 6.67131 3.71015 6.63088 3.7383 6.56803L3.98791 6.01106C4.07389 5.81929 4.22681 5.66632 4.41859 5.58039L4.97558 5.33075C5.03841 5.3026 5.07886 5.24015 5.07886 5.17132C5.07886 5.10249 5.03843 5.04006 4.9756 5.01191Z"/><path d="M10.2667 8.05749C10.9035 7.39282 10.8808 6.33778 10.2162 5.70101C9.55149 5.06424 8.49645 5.08686 7.85968 5.75154L6.94946 6.70166L7.86125 7.53244C8.18838 7.83049 8.21194 8.3373 7.91388 8.66442C7.61582 8.99154 7.10902 9.0151 6.78189 8.71705L5.84046 7.85926L1.79648 12.0805C1.15971 12.7452 1.18233 13.8002 1.84701 14.437C2.51168 15.0737 3.56672 15.0511 4.20349 14.3864L10.2667 8.05749Z"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 16 16"><path d="M14.6667 8.00004C14.6667 11.6819 11.6819 14.6667 8.00004 14.6667C4.31814 14.6667 1.33337 11.6819 1.33337 8.00004C1.33337 4.31814 4.31814 1.33337 8.00004 1.33337C11.6819 1.33337 14.6667 4.31814 14.6667 8.00004Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M10.8451 5.9466C11.1054 6.20695 11.1054 6.62906 10.8451 6.88941L7.68107 10.0534C7.42075 10.3137 6.99872 10.3138 6.73836 10.0535L5.15569 8.47151C4.89528 8.21122 4.8952 7.78911 5.15549 7.5287C5.41578 7.2683 5.83789 7.26821 6.0983 7.52851L7.20956 8.6393L9.90226 5.9466C10.1626 5.68626 10.5847 5.68626 10.8451 5.9466Z" style="fill:#00f59e"/></symbol>
+    <symbol id="ic-personok" viewBox="0 0 20 20"><path d="M12.0522 6.68903C12.0522 9.01421 10.2122 10.8781 7.91669 10.8781C5.62121 10.8781 3.78116 9.01421 3.78116 6.68903C3.78116 4.36386 5.62121 2.5 7.91669 2.5C10.2122 2.5 12.0522 4.36386 12.0522 6.68903Z"/><path d="M1.66669 14.7887C1.66669 12.635 4.54521 12.096 7.91669 12.096C11.3057 12.096 14.1667 12.6536 14.1667 14.8073C14.1667 16.961 11.2873 17.5 7.91669 17.5C4.52769 17.5 1.66669 16.9415 1.66669 14.7887Z"/><path d="M18.5487 7.87572C18.8488 7.52678 18.8092 7.00063 18.4602 6.70054C18.1113 6.40044 17.5851 6.44005 17.285 6.78899L15.7467 8.57769L14.9476 7.70653C14.6365 7.36738 14.1093 7.34465 13.7702 7.65577C13.431 7.96688 13.4083 8.49403 13.7194 8.83318L15.1528 10.3957C15.3137 10.5712 15.5421 10.6694 15.7802 10.6656C16.0183 10.6618 16.2434 10.5563 16.3987 10.3757L18.5487 7.87572Z"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M20.2678 3.73223C21.2441 4.70854 21.2441 6.29146 20.2678 7.26777L7.26777 20.2678C6.29146 21.2441 4.70854 21.2441 3.73223 20.2678C2.75592 19.2915 2.75592 17.7085 3.73223 16.7322L16.7322 3.73223C17.7085 2.75592 19.2915 2.75592 20.2678 3.73223Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M3.73223 3.73223C4.70854 2.75592 6.29146 2.75592 7.26777 3.73223L20.2678 16.7322C21.2441 17.7085 21.2441 19.2915 20.2678 20.2678C19.2915 21.2441 17.7085 21.2441 16.7322 20.2678L3.73223 7.26777C2.75592 6.29146 2.75592 4.70854 3.73223 3.73223Z"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 16 16"><path d="M13.3329 3.13377C12.7329 2.53377 8.66621 1.20044 7.99954 1.20044C7.26621 1.20044 3.26621 2.53377 2.66621 3.13377C2.13288 3.60044 2.13288 4.00044 2.19954 5.73377C2.19954 6.40044 2.19954 7.33377 2.19954 8.60044C2.19954 13.3338 7.53288 15.0004 7.79954 15.0671C7.86621 15.0671 7.93288 15.0671 7.99954 15.0671C8.06621 15.0671 8.13288 15.0671 8.19954 15.0671C8.39954 15.0004 13.7995 13.3338 13.7995 8.60044C13.7995 7.33377 13.7995 6.40044 13.7995 5.73377C13.7995 4.00044 13.8662 3.60044 13.3329 3.13377ZM7.33288 5.46711C7.33288 5.06711 7.59954 4.80044 7.99954 4.80044C8.39954 4.80044 8.66621 5.06711 8.66621 5.46711V8.40044C8.66621 8.80044 8.39954 9.06711 7.99954 9.06711C7.59954 9.06711 7.33288 8.80044 7.33288 8.40044V5.46711ZM7.99954 11.3338C7.53288 11.3338 7.13288 10.9338 7.13288 10.5338C7.13288 10.1338 7.53288 9.73377 7.93288 9.73377C8.39954 9.73377 8.73288 10.1338 8.73288 10.5338C8.73288 10.9338 8.46621 11.3338 7.99954 11.3338Z"/></symbol>
+    <symbol id="ic-video" viewBox="0 0 20 20"><path d="M4.79167 2.91675C2.7206 2.91675 1.04167 4.59568 1.04167 6.66675V13.3334C1.04167 15.4045 2.7206 17.0834 4.79167 17.0834H11.4583C13.5294 17.0834 15.2083 15.4045 15.2083 13.3334V12.7859L17.0949 14.2084C17.8341 14.7651 18.9465 14.2843 18.9474 13.4068L18.9584 6.59666C18.9593 5.71916 17.8478 5.23416 17.1068 5.79083L15.2084 7.21659L15.2083 12.7859V6.66675C15.2083 4.59568 13.5294 2.91675 11.4583 2.91675H4.79167Z"/></symbol>
+    <symbol id="ic-lounge" viewBox="0 0 26 26"><path d="M15.709 7.52907C15.709 10.4309 13.3566 12.7832 10.4548 12.7832C7.55302 12.7832 5.20065 10.4309 5.20065 7.52907C5.20065 4.62727 7.55302 2.2749 10.4548 2.2749C13.3566 2.2749 15.709 4.62727 15.709 7.52907Z"/><path d="M21.2223 10.7077C22.1004 9.88457 22.5395 8.8951 22.5395 7.73925C22.5395 6.5834 22.1004 5.59392 21.2223 4.77082C20.3441 3.94755 19.2885 3.53592 18.0554 3.53592C17.7887 3.53592 17.532 3.55302 17.2853 3.58721C18.6187 5.13931 19.387 9.3155 17.3152 11.8737C17.6049 11.9196 17.8517 11.9426 18.0554 11.9426C19.2885 11.9426 20.3441 11.5309 21.2223 10.7077Z"/><path d="M18.9476 17.8272C18.3361 16.5107 16.6047 14.0442 10.7476 14.0442C4.89053 14.0442 2.54781 16.5662 1.96205 17.8272C1.37628 19.0882 0.825041 20.9797 1.96205 22.2407C3.09905 23.5017 8.93889 23.5017 10.7477 23.5017C12.5565 23.5017 17.9917 23.2698 18.9476 22.2407C19.9036 21.2117 19.5591 19.1438 18.9476 17.8272Z"/><path d="M24.6411 17.7222C24.1157 16.6713 22.5395 15.0951 19.387 14.5697C22.5395 17.1967 22.6446 21.7153 20.9632 22.9763C21.6116 22.9763 23.9025 22.8788 24.6411 21.4001C25.3797 19.9214 25.1665 18.773 24.6411 17.7222Z"/></symbol>
+    <symbol id="ic-history" viewBox="0 0 26 26"><path fill-rule="evenodd" clip-rule="evenodd" d="M13 23.8334C18.9831 23.8334 23.8334 18.9832 23.8334 13.0001C23.8334 7.017 18.9831 2.16675 13 2.16675C7.01693 2.16675 2.16669 7.017 2.16669 13.0001C2.16669 18.9832 7.01693 23.8334 13 23.8334ZM13.7165 8.50092C13.7165 7.90261 13.2315 7.41758 12.6332 7.41758C12.0349 7.41758 11.5498 7.90261 11.5498 8.50092V13.7518C11.5498 14.1333 11.7505 14.4867 12.0782 14.6822L16.1623 17.1186C16.6762 17.4251 17.3412 17.2571 17.6477 16.7433C17.9542 16.2294 17.7862 15.5644 17.2724 15.2579L13.7165 13.1366V8.50092Z"/></symbol>
+    <symbol id="ic-message" viewBox="0 0 26 26"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.08331 13.0178C1.08331 6.74024 6.10023 1.08325 13.0238 1.08325C19.7925 1.08325 24.9166 6.63283 24.9166 12.982C24.9166 20.3456 18.9106 24.9166 13 24.9166C11.0456 24.9166 8.87681 24.3915 7.13698 23.3651C6.52923 22.9951 6.01681 22.7206 5.3614 22.9354L2.95423 23.6515C2.34648 23.8425 1.79831 23.3651 1.97706 22.7206L2.77548 20.0473C2.90656 19.6773 2.88273 19.2835 2.69206 18.9732C1.66723 17.0875 1.08331 15.0228 1.08331 13.0178ZM11.4508 13.0178C11.4508 13.8652 12.1301 14.5454 12.9761 14.5574C13.8222 14.5574 14.5015 13.8652 14.5015 13.0298C14.5015 12.1824 13.8222 11.5021 12.9761 11.5021C12.142 11.4902 11.4508 12.1824 11.4508 13.0178ZM16.9444 13.0298C16.9444 13.8652 17.6236 14.5574 18.4697 14.5574C19.3158 14.5574 19.9951 13.8652 19.9951 13.0298C19.9951 12.1824 19.3158 11.5021 18.4697 11.5021C17.6236 11.5021 16.9444 12.1824 16.9444 13.0298ZM7.48256 14.5574C6.6484 14.5574 5.95723 13.8652 5.95723 13.0298C5.95723 12.1824 6.63648 11.5021 7.48256 11.5021C8.32865 11.5021 9.0079 12.1824 9.0079 13.0298C9.0079 13.8652 8.32865 14.5454 7.48256 14.5574Z"/></symbol>
+    <symbol id="ic-discover" viewBox="0 0 26 26"><path fill-rule="evenodd" clip-rule="evenodd" d="M13 21.6667C17.7865 21.6667 21.6667 17.7865 21.6667 13.0001C21.6667 8.21361 17.7865 4.33341 13 4.33341C8.21355 4.33341 4.33335 8.21361 4.33335 13.0001C4.33335 17.7865 8.21355 21.6667 13 21.6667ZM13 23.8334C18.9831 23.8334 23.8334 18.9832 23.8334 13.0001C23.8334 7.017 18.9831 2.16675 13 2.16675C7.01693 2.16675 2.16669 7.017 2.16669 13.0001C2.16669 18.9832 7.01693 23.8334 13 23.8334Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M11.0478 4.32537C13.3253 5.71666 12.7464 8.17741 10.7336 8.99177L10.4905 9.08599C9.42892 9.52594 8.75036 10.456 8.3519 12.2101L8.31027 12.4012C7.93401 14.2033 6.34588 14.9773 3.8174 14.7572L3.63519 14.7398L3.3343 14.5363C3.3343 14.5363 2.79409 9.73184 6.64229 6.14816C10.4905 2.56447 11.0478 4.32537 11.0478 4.32537Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M20.7141 7.91301C20.7141 7.91301 22.8562 11.8629 22.7444 13.4442C22.5648 15.9848 21.5494 18.3371 20.5799 19.5143C19.4547 20.6049 18.2775 21.055 18.2775 21.055C17.6554 21.393 15.6927 19.9742 15.0274 19.0787L14.8671 18.854C14.462 18.2659 14.3838 17.8722 14.4615 17.2697L14.4948 17.0362C14.6031 16.2012 14.4173 15.639 13.5031 14.6919L13.3899 14.5764L13.1198 14.3122L12.791 13.963L12.6133 13.7683C12.2055 13.3122 12.063 13.0724 11.9995 12.7295C11.96 12.5168 11.9699 12.3162 12.0753 12.0388C12.2061 11.6946 12.4746 11.2993 12.9108 10.8332C13.1927 10.532 13.4937 10.351 13.8452 10.3408C14.2341 10.3282 14.5684 10.5052 14.9667 10.8289L15.0491 10.8973L15.1338 10.9705L15.3163 11.1359L15.6056 11.4086L15.8021 11.5898C16.3334 12.0643 16.6223 12.1713 16.8903 12.0151C17.1701 11.852 17.3424 11.6093 17.6364 10.9995L17.7353 10.7896C17.771 10.7115 17.8021 10.6396 17.8331 10.563L17.8801 10.443L18.1324 9.753C18.2506 9.44611 18.3634 9.20325 18.5457 8.86838C19.1464 7.76506 19.896 7.34473 20.7141 7.91301Z"/></symbol>
+  </defs>
+</svg>
 
+<div id="app">
+  <div id="phoneWrap">
+    <div id="phone" data-screen="welcome" data-lay="" data-top="0" data-tab="0" data-hud="0">
+
+      <!-- 영상 칸: 화면마다 위치가 바뀌는 하나의 칸 -->
+      <div class="cell" id="remoteCell">
+        <div class="avbg" id="avbgBox"></div>
+        <video id="remoteVideo" playsinline muted autoplay></video>
+        <canvas id="mascot"></canvas>
+        <div class="fx" id="remoteFx"></div>
+        <div class="empty">…</div>
+        <span class="tag">상대</span>
+        <div class="who"><b id="whoName">user0424</b><span id="whoInfo" data-flag="it">Italy · Italian</span></div>
+      </div>
+      <div class="cell" id="localCell">
+        <video id="localVideo" playsinline muted autoplay></video>
+        <canvas id="overlay"></canvas>
+        <canvas id="comp"></canvas>
+        <div class="fx" id="localFx"></div>
+        <div class="empty">…</div>
+        <span class="tag">나</span>
+        <div class="who"><b>Me</b><span data-flag="kr">Korea · Korean</span></div>
+      </div>
+
+      <!-- 공통 레이어 -->
+      <div class="statusbar"><span class="time">9:41</span><div class="lv" id="sbIcons"></div></div>
+      <div class="toprow">
+        <div class="me36" id="me36"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2"/><path d="M3.5 21c0-4.6 4-6.8 8.5-6.8s8.5 2.2 8.5 6.8z"/></svg></div>
+        <div class="gemchip" id="gemSlot1"></div>
+        <div class="bell" id="bellI"></div>
+      </div>
+      <div class="tabbar" id="tabbar"></div>
+      <div class="hud" id="hud">
+        <button class="rnd2" id="hudX" style="left:16px" aria-label="Close"><svg class="ico"><use href="#ic-close"/></svg></button>
+        <button class="rnd2" id="hudShield" style="left:64px" aria-label="Report"><svg class="ico"><use href="#ic-shield"/></svg></button>
+        <div class="timer"><span id="hudTime">01:00</span><small id="hudLabel">Room closes</small></div>
+        <div class="gemchip" id="gemSlot2"></div>
+      </div>
+      <div class="toast" id="toastEl"></div>
+
+      <!-- 1. 소개 -->
+      <div class="scr" id="s-welcome">
+        <div class="hero"><div data-av="#00f59e,hat"></div></div>
+        <h1 style="top:392px">Play 1-min games<br>with real people</h1>
+        <p class="p15" style="top:476px">Match, play for 30 seconds, then keep talking if you click.</p>
+        <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
+        <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
+        <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Try with Azuzu</button><button class="tbtn gray" id="welLater">Maybe later</button></div>
+      </div>
+
+      <!-- 2. 카메라와 마이크 -->
+      <div class="scr" id="s-camera">
+        <h1 id="camTitle" style="top:352px">Camera and mic</h1>
+        <p class="p15" id="camBody" style="top:396px">…</p>
+        <div class="permrow" style="top:492px"><b>Camera</b><span id="permA">Only you can see your preview</span><i></i></div>
+        <div class="permrow" style="top:552px"><b>Microphone</b><span id="permB">Voice effects in some games</span><i></i></div>
+        <div class="bottombtns"><button class="btn" id="camAllow">Allow</button><button class="tbtn gray" id="camLater">Not now</button></div>
+      </div>
+
+      <!-- 3. 찾는 중 / 부족 / 떠남 -->
+      <div class="scr" id="s-finding">
+        <svg class="arrow" viewBox="0 0 560 420" fill="none"><path d="M10 250 C 120 110, 300 70, 470 150" stroke="#2b2b2b" stroke-width="64" stroke-linecap="round"/><path d="M400 60 L 500 150 L 380 200" stroke="#2b2b2b" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/><path d="M560 190 C 520 330, 300 420, 60 380" stroke="#2b2b2b" stroke-width="64" stroke-linecap="round"/></svg>
+        <div class="ring" style="left:47px;top:270px;width:300px;height:300px;opacity:.12"></div>
+        <div class="ring" style="left:87px;top:310px;width:220px;height:220px;opacity:.2"></div>
+        <div class="ring" style="left:127px;top:350px;width:140px;height:140px;opacity:.35"></div>
+        <div class="mascot" data-av="#00f59e"></div>
+        <h2 id="fTitle">Finding a player...</h2>
+        <p id="fSub">Matching with someone who wants to play</p>
+        <div class="many"><div class="pill" id="fPill">Azuzu joins in 8s if nobody shows up</div></div>
+        <div class="few"><button class="btn" id="fewBtn">Play with Azuzu</button><button class="tbtn" id="fewLink">Keep waiting</button></div>
+      </div>
+
+      <!-- 4. Ready (첫 번째 옵트인) -->
+      <div class="scr" id="s-ready">
+        <div class="pcard">
+          <div data-av="#FF946D,crown" id="pAv" class="avatar-slot"></div>
+          <div class="badge" id="pBadge"></div>
+          <div class="pname">user0424</div>
+          <div class="pinfo" data-flag="it">Italy · Italian</div>
+          <div class="ichips"><span>🧳 Travel</span><span>🎬 Movies</span><span>⚽ Sports</span></div>
+        </div>
+        <div class="glow"></div><div class="glowme"></div>
+        <div class="mychip"><svg class="ico"><use href="#ic-eyeslash"/></svg>Only you can see this</div>
+        <button class="wand" id="wandReady" aria-label="Filter"><svg class="ico"><use href="#ic-wand"/></svg></button>
+        <div class="myready"><svg class="ico" style="--ic:#111"><use href="#ic-check"/></svg>Ready</div>
+        <h3>Ready to play?</h3>
+        <button class="xbtn" id="rX" aria-label="Leave"><svg class="ico"><use href="#ic-close"/></svg></button>
+        <button class="btn rbtn" id="rBtn"><span id="rBtnTxt" style="display:flex;align-items:center;gap:8px"></span></button>
+        <div class="consent">By tapping Ready, you agree to video connection and recording of your screen.</div>
+      </div>
+
+      <!-- 5. 규칙 (두 번째 옵트인) -->
+      <div class="scr" id="s-rules">
+        <div class="dim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <h2 id="rulesTitle">Crack Up</h2>
+          <div class="how">How to play</div>
+          <div class="tile" style="left:24px"><div class="em" id="tEm0"></div><b id="tTt0"></b><span id="tDs0"></span></div>
+          <div class="tile" style="left:144px"><div class="em" id="tEm1"></div><b id="tTt1"></b><span id="tDs1"></span></div>
+          <div class="tile" style="left:264px"><div class="em" id="tEm2"></div><b id="tTt2"></b><span id="tDs2"></span></div>
+          <div class="reward"><svg class="gem" viewBox="0 0 16 16" style="width:20px;height:20px"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg>Win a game, earn +3 Gems</div>
+          <button class="btn" id="startBtn2"><i class="ringc" id="ringStart" style="border-radius:50%;background:conic-gradient(#111 var(--p,0deg), rgba(0,0,0,.2) 0);-webkit-mask:radial-gradient(circle 6px,transparent 98%,#000 100%);mask:radial-gradient(circle 6px,transparent 98%,#000 100%)"></i><span id="startTxt">Start</span></button>
+          <button class="tbtn" id="skipBtn2">Skip</button>
+        </div>
+      </div>
+
+      <!-- 6. 게임 중 -->
+      <div class="scr" id="s-game">
+        <div class="count" id="count">3</div>
+        <div class="gmsg2" id="gMsg2"></div>
+        <div class="gsub2" id="gSub2"></div>
+        <div class="bars"><div id="barMe"><span></span></div><div class="op" id="barOp"><span></span></div></div>
+      </div>
+
+      <!-- 7. 게임 후 -->
+      <div class="scr" id="s-after">
+        <div class="rchip" id="chipEl"><b id="chipT">You won!</b><span id="chipS"></span><em><svg class="gem" viewBox="0 0 16 16" style="width:22px;height:22px"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg>+3 Gems</em></div>
+        <div class="rbar"><button class="wandb" id="wandAfter" aria-label="Filter"><svg class="ico"><use href="#ic-wand"/></svg></button><span class="sep"></span><div id="emoRow"></div></div>
+        <div class="bb"><button class="btn white" id="keepBtn"><span style="display:flex;align-items:center;gap:6px"><svg class="ico"><use href="#ic-video"/></svg>Keep Talking</span><small id="keepPrice"></small></button><button class="btn" id="newBtn">New Match</button></div>
+      </div>
+      <div class="scr" id="s-sheet">
+        <div class="dim" id="sheetClose"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <h2 id="sheetTitle">Keep Talking?</h2>
+          <p id="sheetBody">Spend 50 Gems to switch to Video Chat. Your partner doesn’t need to accept.</p>
+          <button class="btn" id="sheetPay">Continue</button><button class="btn" id="sheetNo" style="display:none">Get Gems</button>
+          <button class="tbtn" id="sheetNot" style="color:#8c8c8c">Not now</button>
+        </div>
+      </div>
+      <div class="scr" id="s-exit">
+        <div class="dim"></div>
+        <div class="dlg"><b>Leave the game?</b><span>Your partner will be notified.</span><div class="row2"><button class="btn" id="exitStay">Stay</button><button class="btn m" id="exitLeave">Leave</button></div></div>
+      </div>
+
+      <!-- 8. 비디오챗 -->
+      <div class="scr" id="s-chat">
+        <div class="dimt"></div><div class="dimb"></div>
+        <button class="cx" id="cX" aria-label="End"><svg class="ico"><use href="#ic-close"/></svg></button>
+        <button class="cs" id="cShield" aria-label="Report"><svg class="ico"><use href="#ic-shield"/></svg></button>
+        <div class="nm" id="chatNm">user0424</div>
+        <div class="nm2" data-flag="it">Italy · Italian</div>
+        <div class="follow">＋ Follow</div>
+        <div class="bar">
+          <button class="rb" style="left:16px" aria-label="Chat"><svg class="ico"><use href="#ic-message"/></svg></button>
+          <button class="rb" style="left:64px" aria-label="Filter"><svg class="ico"><use href="#ic-wand"/></svg></button>
+          <button class="rb" style="left:112px" aria-label="Camera"><svg class="ico"><use href="#ic-video"/></svg></button>
+          <button class="rb" style="left:160px" aria-label="Flip"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5a7 7 0 0 1 6.3 4H16v2.2h6V5.2h-2.2V7.6A9.2 9.2 0 0 0 12 2.8c-4 0-7.4 2.6-8.6 6.2l2.1.7A7 7 0 0 1 12 5zm0 14a7 7 0 0 1-6.3-4H8v-2.2H2v6h2.2v-2.4A9.2 9.2 0 0 0 12 21.2c4 0 7.4-2.6 8.6-6.2l-2.1-.7A7 7 0 0 1 12 19z"/></svg></button>
+          <span class="sep"></span><div id="emoRow2"></div></div>
+      </div>
+
+      <!-- 9. 젬 내역 -->
+      <div class="scr" id="s-gems">
+        <button class="rnd2" id="gemsClose" style="position:absolute;left:6px;top:58px;width:44px;height:44px;display:grid;place-items:center" aria-label="Close"><svg class="ico" style="width:24px;height:24px"><use href="#ic-close"/></svg></button>
+        <h2 class="t">Gems</h2>
+        <div class="bal"><small>Your Gems</small><svg class="gem" viewBox="0 0 16 16"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg><b id="gemTxt3">2,803</b></div>
+        <div class="rec">Recent</div>
+        <div class="grow" style="top:316px"><b>You won · Crack Up</b><span>Today 9:41</span><em class="p">+3</em></div>
+        <div class="grow" style="top:388px"><b>Keep Talking</b><span>Today 9:12</span><em>−50</em></div>
+        <div class="grow" style="top:460px"><b>You won · Yum or Yuck</b><span>Yesterday</span><em class="p">+3</em></div>
+        <div class="grow" style="top:532px"><b>You won · Crack Up</b><span>Yesterday</span><em class="p">+3</em></div>
+        <div class="bottombtns"><button class="btn" id="gemsGet">Get Gems</button><button class="tbtn gray" onclick="document.getElementById('gemsClose').click()">Close</button></div>
+      </div>
+
+      <div class="homebar"></div>
+    </div>
+  </div>
+
+  <aside id="debugPane">
+    <main>
+      <header>
+        <h1>Azar Play 디버그 패널</h1>
+        <p class="lead">왼쪽 폰 화면이 Figma v3 화면입니다. 여기는 카메라, 얼굴 값, 연결 상태, 보고서 같은 테스트용 정보입니다. 폰에서 열면 이 패널은 숨겨지고, 주소 끝에 <code>?debug</code>를 붙이면 아래에 나옵니다. 주소에 <code>?desk</code>나 <code>?mobile</code>을 붙이면 레이아웃을 강제로 바꿉니다.</p>
+      </header>
+      <section class="card">
+        <h2>화면 미리보기</h2>
+        <div class="row"><select id="dbgScreen" aria-label="화면 미리보기"></select></div>
+        <div class="row" style="margin-top:8px">
+          <button id="dbgGems" class="ghost" type="button">젬 2,800으로 초기화</button>
+          <button id="dbgCam" class="ghost" type="button">카메라 켜기</button>
+          <label class="small"><input id="dbgBars" type="checkbox"> 가짜 상태바 표시(폰)</label>
+        </div>
+        <p class="small" style="margin-top:8px">고르면 실제 게임 상태와 상관없이 그 화면을 그대로 보여줍니다. 비워두면 실제 흐름을 따라갑니다.</p>
+      </section>
   <div id="secureNotice" class="notice">이 주소는 HTTPS가 아니라서 브라우저가 카메라를 막을 수 있습니다. GitHub Pages 주소(https://로 시작)로 열어주세요.</div>
 
   <section class="card" aria-labelledby="s1">
@@ -149,26 +622,6 @@
       <span class="chip" id="chipModel" data-state="idle"><i></i><b>얼굴 인식</b> <span>대기</span></span>
       <span class="chip" id="chipFace" data-state="idle"><i></i><b>얼굴 감지</b> <span>-</span></span>
       <span class="chip" id="chipMic" data-state="idle"><i></i><b>마이크</b> <span>대기</span></span>
-    </div>
-  </section>
-
-  <section aria-label="화면">
-    <div class="stage">
-      <div class="cell" id="localCell">
-        <video id="localVideo" playsinline muted autoplay></video>
-        <canvas id="overlay"></canvas>
-        <canvas id="comp"></canvas>
-        <div class="fx" id="localFx"></div>
-        <div class="empty">카메라를 시작하면 내 얼굴이 여기에 보입니다.<br>점은 입 중심 위치입니다.</div>
-        <span class="tag">나</span>
-      </div>
-      <div class="cell" id="remoteCell">
-        <video id="remoteVideo" playsinline muted autoplay></video>
-        <canvas id="mascot"></canvas>
-        <div class="fx" id="remoteFx"></div>
-        <div class="empty">2번에서 연결하면 상대 얼굴이 여기에 보입니다.</div>
-        <span class="tag">상대</span>
-      </div>
     </div>
   </section>
 
@@ -260,7 +713,10 @@
     </div>
     <pre id="log" aria-label="기록"></pre>
   </section>
-</main>
+
+    </main>
+  </aside>
+</div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="module">
@@ -649,7 +1105,7 @@
   }
 
   // ---------- 웃음 참기 (그레이박스) ----------
-  const GAME_MS = 30000, COUNT_MS = 3000, ROOM_MS = 60000;
+  const GAME_MS = 30000, COUNT_MS = 3000, ROOM_MS = 60000, RULES_MS = 5000;   // 규칙 시트(2차 옵트인) 5초 -> 3초 카운트다운 -> 30초 게임. 방 1분은 게임 시작부터
   const STEP_MS = 4000, SMILE_DEAD = 0.12, SCORE_K = 100, SCORE_TIE = 2, HP_MAX = 200;  // 웃음 점수가 HP_MAX가 되면 에너지가 다 닳아서 바로 진다
   const g = { phase: "idle", solo: false, myReady: false, peerReady: false, note: "" };
   const comp = $("comp"), cctx = comp.getContext("2d"), CW = 480;
@@ -668,7 +1124,7 @@
   const linked = () => !!(state.data && state.data.open);
   const sendMsg = (m) => { if (linked()) state.data.send(m); };
   const isHost = () => slotIndex === 0;
-  const playing = () => g.phase === "countdown" || g.phase === "play";
+  const playing = () => g.phase === "rules" || g.phase === "countdown" || g.phase === "play";
   const setMsg = (m, sub) => { $("gMsg").textContent = m; $("gSub").textContent = sub || ""; };
   const setBar = (p) => { $("gBar").style.width = Math.max(0, Math.min(1, p)) * 100 + "%"; };
   const roomText = (now) => ` · 방 닫힘까지 ${Math.max(0, Math.ceil((g.roomEnd - now) / 1000))}초`;
@@ -725,11 +1181,14 @@
     }
   }
 
+  // 웃음 참기는 카운트다운 동안 무표정 기준선을 잰다.
+  function startBaseline() { if (g.game === "laugh" && !state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); } }
+
   function beginRound(solo, mySeq, peerSeq, game = "laugh", seed = 1) {
     g.mascot = false;
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     const now = performance.now();
-    Object.assign(g, { phase: "countdown", solo, myReady: false, peerReady: false, playAt: now + COUNT_MS, roomEnd: now + ROOM_MS,
+    Object.assign(g, { phase: (solo ? 0 : RULES_MS) ? "rules" : "countdown", rulesAt: now + (solo ? 0 : RULES_MS), solo, myReady: false, peerReady: false, playAt: now + (solo ? 0 : RULES_MS) + COUNT_MS, roomEnd: now + (solo ? 0 : RULES_MS) + COUNT_MS + ROOM_MS, won: false, result: null, rewarded: false,
       score: 0, peerScore: 0, lastT: 0, lastSend: 0, crackLvl: 0, popAcc: 0, lastPop: 0, myFinal: null, peerFinal: null,
       finalTimer: null, timeUpDone: false, note: "", mySeq, peerSeq, myKO: false, peerKO: false, koTimer: null,
       game, seed, lastGame: game, eaten: new Set(), mouthOpen: false, needClose: false, openTarget: null, openAt: 0 });
@@ -737,7 +1196,7 @@
     setGameLabels(game);
     state.filterStage = -1; setVoice(null); state.voiceFor = null;
     Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0;
-    if (game === "laugh" && !state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); }
+    if (g.phase === "countdown") startBaseline();
     setLive(true);
     log(solo ? "혼자 해보기 시작" : "게임 시작");
     ui();
@@ -769,6 +1228,8 @@
   function finish(r) {
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     g.phase = "reaction"; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
+    g.result = r; g.won = r === "win" || r === "ko_win";
+    if (g.won && !g.rewarded && !(g.solo && !g.mascot)) { g.rewarded = true; addGems(3); }   // 이기면 3젬
     g.resultMsg = (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
     g.resultSub = `${g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + ((g.solo && !g.mascot) || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
     setBar(1);
@@ -922,6 +1383,7 @@
       if (now >= g.roomEnd) expire();
       return;
     }
+    if (g.phase === "rules") { setMsg("Check the rules", ""); if (now >= g.rulesAt) { g.phase = "countdown"; startBaseline(); } return; }
     if (g.phase === "countdown") {
       setMsg(String(Math.max(1, Math.ceil((g.playAt - now) / 1000))), (g.game === "eat" ? "얼굴을 움직여 입을 이모지에 대고, 입을 열었다 닫아서 먹어요!" : "무표정으로 가만히 있어요 (기준선 측정)") + roomText(now));
       setBar(0);
@@ -980,17 +1442,11 @@
   mc.width = 480; mc.height = 480;
   function drawMascot() {
     if ($("remoteCell").classList.contains("mascot")) {
-      const t = performance.now() / 1000, bob = Math.sin(t * 2) * 6;
-      mctx.fillStyle = "#0f1411"; mctx.fillRect(0, 0, 480, 480);
-      mctx.fillStyle = "#00f59e"; mctx.beginPath(); mctx.arc(240, 250 + bob, 135, 0, 6.283); mctx.fill();
-      const blink = (t % 3.2) < 0.15 ? 0.15 : 1;
-      for (const ex of [190, 290]) {
-        mctx.fillStyle = "#fff"; mctx.beginPath(); mctx.ellipse(ex, 225 + bob, 30, 30 * blink, 0, 0, 6.283); mctx.fill();
-        mctx.fillStyle = "#06231a"; mctx.beginPath(); mctx.arc(ex + Math.sin(t) * 6, 225 + bob, 12 * blink, 0, 6.283); mctx.fill();
-      }
-      const eating = g.game === "eat" && g.phase === "play", open = eating ? 8 + 22 * Math.abs(Math.sin(t * 3)) : 6;
-      mctx.fillStyle = "#06231a"; mctx.beginPath(); mctx.ellipse(240, 305 + bob, 40, open, 0, 0, 6.283); mctx.fill();
-      mctx.fillStyle = "#06231a"; mctx.font = "bold 20px system-ui, sans-serif"; mctx.textAlign = "center"; mctx.fillText("Azuzu", 240, 440);
+      const t = performance.now() / 1000, bob = Math.sin(t * 2) * 8;
+      const gr = mctx.createLinearGradient(0, 0, 0, 480); gr.addColorStop(0, "#dcf7e8"); gr.addColorStop(1, "#c7edfa");
+      mctx.fillStyle = gr; mctx.fillRect(0, 0, 480, 480);
+      const im = window.__azImg;
+      if (im && im.complete && im.naturalWidth) { const w = 300, h = w * 653 / 470; mctx.drawImage(im, 240 - w / 2, 262 - h / 2 + bob, w, h); }
     }
     requestAnimationFrame(drawMascot);
   }
@@ -1383,10 +1839,349 @@
     copyText($("report").value, "보고서를 복사했습니다.");
   });
 
+    // =====================================================================
+  // Figma v3 화면 껍데기. 게임/연결 로직은 위 엔진이 그대로 하고, 여기서는 상태를 읽어서 화면만 그린다.
+  // 기준 크기 393 x 852. 폰에서는 화면 전체에 비율 유지로 채우고, 데스크톱에서는 폰 틀 + 오른쪽 디버그 패널.
+  // =====================================================================
+  const UI = {
+    welcomed: false, preferAzuzu: false, waitSince: 0, few: false,
+    toast: "", toastUntil: 0, sheet: null, exit: false, gemsPage: false, dbg: null,
+    photo: null, camDenied: false, started: false, lastScreen: "", avKey: "",
+    gems: Number(localStorage.getItem("azar.gems")) || 2800
+  };
+  const PARTNER = "user0424";
+  const KEEP_COST = 50, WIN_GEMS = 3;
+  const phone = $("phone"), appEl = $("app");
+
+  function addGems(n) { UI.gems = Math.max(0, UI.gems + n); try { localStorage.setItem("azar.gems", String(UI.gems)); } catch (e) {} }
+  function toast(msg, ms = 2200) { UI.toast = msg; UI.toastUntil = performance.now() + ms; }
+  const mmss = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+  // ---------- 크기 맞추기 ----------
+  function fit() {
+    const forceDesk = /[?&]desk/.test(location.search), forceMobile = /[?&]mobile/.test(location.search);
+    const coarse = matchMedia("(pointer: coarse)").matches;
+    const desk = forceDesk || (!forceMobile && !coarse && innerWidth >= 820);
+    appEl.classList.toggle("desk", desk);
+    const wrap = $("phoneWrap");
+    let s, w, h;
+    if (desk) { s = Math.min(1.15, (innerHeight - 40 - 20) / 852, (innerWidth - 40 - 20 - 560) / 393); s = Math.max(0.4, s); w = 393 * s + 20; h = 852 * s + 20; }
+    else { s = Math.min(innerWidth / 393, innerHeight / 852); w = 393 * s; h = 852 * s; }
+    wrap.style.width = w + "px"; wrap.style.height = h + "px";
+    phone.style.transform = `scale(${s})`;
+  }
+  addEventListener("resize", fit); fit();
+  if (/[?&]debug/.test(location.search)) document.body.classList.add("showdebug");
+
+  // ---------- 조각 만들기 ----------
+  function avatar(color, acc) {
+    const crown = '<svg class="crown" viewBox="0 0 40 30"><path d="M2 27L5 6L14 16L20 2L26 16L35 6L38 27Z" fill="#FFD93B" stroke="#111" stroke-width="3" stroke-linejoin="round"/></svg>';
+    const hat = '<svg class="hat" viewBox="0 0 40 50"><rect x="9" y="2" width="22" height="34" rx="2" fill="#111"/><rect x="3" y="33" width="34" height="9" rx="4.5" fill="#111"/></svg>';
+    return `<span class="avatar" style="--azc:${color}"><svg class="body" viewBox="0 11.83 117.46 117.46"><use href="#azoo"/></svg>${acc === "crown" ? crown : acc === "hat" ? hat : ""}</span>`;
+  }
+  const FLAG_IT = '<svg width="20" height="14" viewBox="0 0 20 14"><rect width="7" height="14" fill="#009246"/><rect x="7" width="6" height="14" fill="#fff"/><rect x="13" width="7" height="14" fill="#ce2b37"/></svg>';
+  const FLAG_KR = '<svg width="20" height="14" viewBox="0 0 20 14"><rect width="20" height="14" fill="#fff"/><circle cx="10" cy="7" r="3.4" fill="#cd2e3a"/><path d="M6.6 7a3.4 3.4 0 0 0 6.8 0z" fill="#0047a0"/></svg>';
+  const ico = (id, cls = "") => `<svg class="ico ${cls}"><use href="#${id}"/></svg>`;
+  const GEM = '<svg class="gem" viewBox="0 0 16 16"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg>';
+
+  // ---------- 고정 골격 만들기 ----------
+  $("sbIcons").innerHTML = '<svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#fff"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#fff"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#fff"/></svg><svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 2.4c2.4 0 4.6 1 6.2 2.6l1.1-1.1C13.9 2 11.3.8 8.5.8S3.1 2 1.2 3.9l1.1 1.1C3.9 3.4 6.1 2.4 8.5 2.4zm0 3.3c1.5 0 2.8.6 3.8 1.6l1.1-1.1A7.6 7.6 0 0 0 8.5 4.1c-2 0-3.9.8-5.3 2.1l1.1 1.1c1-1 2.3-1.6 3.8-1.6zm0 3.2c-.7 0-1.3.3-1.8.7L8.5 11l1.8-1.4c-.5-.4-1.1-.7-1.8-.7z" fill="#fff"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.5" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2z" fill="#fff" opacity=".5"/></svg>';
+  $("tabbar").innerHTML = [
+    ["vc", "ic-discover", "Video Chat"], ["play", null, "Play"], ["lounge", "ic-lounge", "Lounge"], ["history", "ic-history", "History"], ["message", "ic-message", "Message"]
+  ].map((t, i) => `<div class="tab ${t[0] === "play" ? "sel" : ""} ${t[0] === "vc" ? "vc" : ""}" style="left:${i * 78.6}px">${t[1] ? ico(t[1]) : '<svg viewBox="0 0 26 26" style="fill:none"><g style="--azc:#fff">' + '<use href="#azoo" x="0" y="0" width="26" height="26"/></g></svg>'}${t[2]}</div>`).join("") + '<span class="online">Online</span>';
+  document.querySelectorAll("[data-av]").forEach((el) => { const [c, a] = el.dataset.av.split(","); el.innerHTML = avatar(c, a || ""); });
+  $("gemSlot1").innerHTML = GEM + '<span id="gemTxt1"></span>';
+  $("gemSlot2").innerHTML = GEM + '<span id="gemTxt2"></span>';
+  $("bellI").innerHTML = ico("ic-bell") + "<i>23</i>";
+  document.querySelectorAll("[data-flag]").forEach((el) => { el.insertAdjacentHTML("afterbegin", el.dataset.flag === "it" ? FLAG_IT : FLAG_KR); });
+  const EMOJIS = ["👍", "🤩", "🙌", "😮", "🐰", "💗"];
+  $("emoRow").innerHTML = EMOJIS.map((e, i) => `<button class="emo" data-e="${e}" style="left:${84 + i * 56}px">${e}</button>`).join("");
+  $("emoRow2").innerHTML = EMOJIS.slice(0, 3).map((e, i) => `<button class="emo" data-e="${e}" style="left:${224 + i * 52}px">${e}</button>`).join("");
+
+  // ---------- 게임 문구 ----------
+  const RULES = {
+    laugh: { title: "Crack Up", tiles: [["😂", "Funny filters", "Silly faces pop up every few seconds."], ["😐", "Stay straight", "Every laugh drains your HP."], ["🏆", "Win and earn", "The one who laughs less wins."]] },
+    eat: { title: "Yum or Yuck", tiles: [["🍩", "Eat yum", "Open wide for yum: +10."], ["💀", "Dodge yuck", "Eat yuck: −25."], ["🏆", "Top score wins", "Highest score in 30 sec wins."]] }
+  };
+  const RESULTS = {
+    win: ["You won!", (e) => e ? "You ate more" : "You laughed less", true],
+    ko_win: ["You won!", () => "Their energy ran out", true],
+    lose: ["You lost!", (e) => e ? "You ate less" : "You laughed more", false],
+    ko_lose: ["You lost!", () => "You ran out of energy", false],
+    draw: ["It’s a draw", () => "So close", false],
+    survive: ["You made it!", () => "Solo run", false],
+    nopeer: ["No result", () => "The result did not arrive", false]
+  };
+
+  // ---------- 화면 고르기 ----------
+  // 화면 이름 -> 켜는 레이어, 영상 칸 배치
+  const SCREENS = {
+    welcome: { on: ["s-welcome"], lay: "" },
+    camera: { on: ["s-camera"], lay: "camera" },
+    finding: { on: ["s-finding"], lay: "", top: 1, tab: 1 },
+    ready: { on: ["s-ready"], lay: "ready", top: 1, tab: 1 },
+    rules: { on: ["s-ready", "s-rules"], lay: "ready", top: 1, tab: 1 },
+    game: { on: ["s-game"], lay: "game", hud: 1 },
+    after: { on: ["s-after"], lay: "game", hud: 1 },
+    pay: { on: ["s-after", "s-sheet"], lay: "game", hud: 1 },
+    exit: { on: ["s-game", "s-exit"], lay: "game", hud: 1 },
+    chat: { on: ["s-chat"], lay: "chat" },
+    gems: { on: ["s-gems"], lay: "" }
+  };
+
+  function liveView(now) {
+    const V = { screen: "welcome" };
+    const mascot = !!g.mascot;
+    if (UI.gemsPage) return { screen: "gems" };
+    if (!state.stream) {
+      if (!UI.welcomed) return { screen: "welcome" };
+      return { screen: "camera", off: UI.camDenied };
+    }
+    switch (g.phase) {
+      case "searching": { const s = Math.max(1, Math.ceil((g.searchEnd - now) / 1000)); return { screen: "finding", variant: "finding", pill: `Azuzu joins in ${s}s`, title: "Finding a player..." }; }
+      case "moved": return { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", toast: PARTNER + " moved on" };
+      case "rules": return { screen: UI.sheet === "none" ? "ready" : "rules", pr: 1, mr: 1, game: g.game, startFrac: Math.min(1, 1 - (g.rulesAt - now) / RULES_MS) };
+      case "countdown": case "play": {
+        const el = now - g.playAt;
+        return { screen: UI.exit ? "exit" : "game", mascot, cd: g.phase === "countdown", count: Math.max(1, Math.ceil((g.playAt - now) / 1000)), game: g.game, play: g.phase === "play", el };
+      }
+      case "reaction": {
+        const r = RESULTS[g.result] || RESULTS.nopeer;
+        return { screen: UI.sheet === "pay" || UI.sheet === "nogems" ? "pay" : "after", mascot, result: g.result, win: r[2] && !(g.solo && !g.mascot), game: g.game, sheetKind: UI.sheet };
+      }
+      case "chat": return { screen: "chat" };
+      case "idle":
+        if (!linked()) {
+          if (g.note) return { screen: "finding", variant: "left" };
+          return { screen: "finding", variant: UI.few ? "few" : "finding", pill: "Azuzu can join if nobody shows up", title: UI.few ? "Few players right now" : "Finding a player..." };
+        }
+        return { screen: "ready", pr: g.peerReady ? 1 : 0, mr: g.myReady ? 1 : 0 };
+    }
+    return V;
+  }
+
+  // 디버그 패널에서 고르는 미리보기 화면
+  const PRESETS = {
+    welcome: { screen: "welcome" }, camera: { screen: "camera" }, "camera off": { screen: "camera", off: true },
+    finding: { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", title: "Finding a player..." },
+    "few players": { screen: "finding", variant: "few", title: "Few players right now" },
+    "partner moved on": { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", toast: PARTNER + " moved on" },
+    "partner skipped": { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", toast: PARTNER + " skipped" },
+    "partner left": { screen: "finding", variant: "left" },
+    "ready: partner deciding": { screen: "ready", pr: 0, mr: 0 }, "ready: partner ready": { screen: "ready", pr: 1, mr: 0 },
+    "ready: I am ready": { screen: "ready", pr: 0, mr: 1 }, "ready: both": { screen: "ready", pr: 1, mr: 1 },
+    "rules: Crack Up": { screen: "rules", pr: 1, mr: 1, game: "laugh", startFrac: 0.4 }, "rules: Yum or Yuck": { screen: "rules", pr: 1, mr: 1, game: "eat", startFrac: 0.4 },
+    "game: countdown": { screen: "game", cd: true, count: 3, game: "laugh" }, "game: Crack Up": { screen: "game", play: true, game: "laugh", el: 12000 }, "game: Yum or Yuck": { screen: "game", play: true, game: "eat", el: 9000 },
+    "game: vs Azuzu": { screen: "game", mascot: true, cd: true, count: 3, game: "laugh" }, "game: exit confirm": { screen: "exit", play: true, game: "laugh", el: 9000 },
+    "after: win": { screen: "after", result: "win", win: true, game: "laugh" }, "after: lose": { screen: "after", result: "lose", game: "laugh" }, "after: draw": { screen: "after", result: "draw", game: "laugh" },
+    "after: win (Yum or Yuck)": { screen: "after", result: "win", win: true, game: "eat" }, "after: vs Azuzu": { screen: "after", mascot: true, result: "win", win: true, game: "laugh" },
+    "keep talking: pay": { screen: "pay", sheetKind: "pay", result: "win", win: true, game: "laugh" }, "keep talking: not enough Gems": { screen: "pay", sheetKind: "nogems", result: "win", win: true, game: "laugh" },
+    "video chat": { screen: "chat" }, "gems history": { screen: "gems" }
+  };
+
+  // ---------- 그리기 ----------
+  const setT = (id, t) => { const el = $(id); if (el && el.textContent !== t) el.textContent = t; };
+  const setH = (id, h) => { const el = $(id); if (el && el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; } };
+  function renderPhone() {
+    const now = performance.now();
+    const V = UI.dbg ? Object.assign({}, PRESETS[UI.dbg] || {}) : liveView(now);
+    if (UI.dbg && /^(game|after|keep|partner)/.test(UI.dbg)) V.demo = true;
+    const S = SCREENS[V.screen] || SCREENS.welcome;
+    const d = phone.dataset;
+    const set = (k, v) => { v = String(v); if (d[k] !== v) d[k] = v; };
+    set("screen", V.screen); set("lay", S.lay || ""); set("top", S.top ? 1 : 0); set("tab", S.tab ? 1 : 0); set("hud", S.hud ? 1 : 0);
+    set("chipwin", (V.screen === "after" || V.screen === "pay") && V.win ? 1 : 0); set("pr", V.pr ? 1 : 0); set("mr", V.mr ? 1 : 0); set("cd", V.cd ? 1 : 0); set("few", V.variant === "few" || V.variant === "left" ? 1 : 0);
+    document.querySelectorAll("#phone .scr").forEach((el) => el.classList.toggle("on", S.on.includes(el.id)));
+    const gemsTxt = UI.gems.toLocaleString("en-US");
+    setT("gemTxt1", gemsTxt); setT("gemTxt2", gemsTxt); setT("gemTxt3", gemsTxt);
+
+    // 토스트
+    const tmsg = V.toast || (now < UI.toastUntil ? UI.toast : "");
+    $("toastEl").classList.toggle("on", !!tmsg); if (tmsg) setT("toastEl", tmsg);
+
+    // 영상 칸 이름표, 상대 아바타 칸
+    const mascot = !!V.mascot || (!UI.dbg && !!g.mascot);
+    setT("whoName", mascot ? "Azuzu" : PARTNER);
+    $("whoInfo").style.display = mascot ? "none" : "flex";
+    const key = mascot ? "m" : "p";
+    if (UI.avKey !== key) { UI.avKey = key; $("avbgBox").innerHTML = mascot ? avatar("#00f59e", "hat") : avatar("#FF946D", "crown"); $("avbgBox").firstChild.style.cssText += ";width:190px;height:190px"; }
+    if (UI.dbg && S.lay === "game") $("remoteCell").classList.toggle("mascot", !!V.mascot);
+    $("chatNm").textContent = PARTNER;
+
+    // Finding 변형
+    if (V.screen === "finding") {
+      const v = V.variant || "finding";
+      setT("fTitle", V.title || (v === "left" ? "Partner left" : "Finding a player..."));
+      setT("fSub", v === "left" ? "Your partner closed the room" : v === "few" ? "Play with Azuzu while you wait?" : "Matching with someone who wants to play");
+      setT("fPill", V.pill || "Azuzu joins in 8s if nobody shows up");
+      setT("fewBtn", v === "left" ? "New Match" : "Play with Azuzu");
+      setT("fewLink", v === "left" ? "" : "Keep waiting");
+      $("fewLink").style.display = v === "left" ? "none" : "flex";
+    }
+
+    // Ready
+    if (V.screen === "ready" || V.screen === "rules") {
+      const pr = !!V.pr, mr = !!V.mr;
+      const bd = $("pBadge"); bd.className = "badge" + (pr ? " ok" : "");
+      bd.innerHTML = pr ? ico("ic-check") + PARTNER + " is ready" : '<i class="spin"></i>' + PARTNER + " is deciding...";
+      const rb = $("rBtn"); rb.classList.toggle("dis", mr);
+      const label = mr ? "Waiting for " + PARTNER + "..." : "Ready";
+      setH("rBtnTxt", (mr ? "" : ico("ic-personok")) + esc(label));
+    }
+    if (V.screen === "rules") {
+      const R = RULES[V.game || "laugh"];
+      setT("rulesTitle", R.title);
+      R.tiles.forEach((t, i) => { setT("tEm" + i, t[0]); setT("tTt" + i, t[1]); setT("tDs" + i, t[2]); });
+      const f = Math.max(0, Math.min(1, V.startFrac || 0));
+      $("ringStart").style.setProperty("--p", f * 360 + "deg");
+      setT("startTxt", UI.started ? "Starting…" : "Start");
+      $("startBtn2").classList.toggle("dis", UI.started);
+    }
+
+    // 게임, 결과, 타이머
+    if (S.hud) {
+      let room, label;
+      if (V.screen === "after" || V.screen === "pay") { room = UI.dbg ? 24000 : g.roomEnd - now; label = "Room closes"; }
+      else if (V.cd) { room = ROOM_MS; label = "Starting in " + (V.count || 3); }
+      else { room = UI.dbg ? 42000 : g.roomEnd - now; label = "Room closes"; }
+      setT("hudTime", mmss(room)); setT("hudLabel", label);
+      const sec = Math.ceil(room / 1000), hud = $("hud");
+      hud.classList.toggle("warn", sec <= 15 && sec > 5 && label === "Room closes"); hud.classList.toggle("crit", sec <= 5 && label === "Room closes");
+      if (sec <= 5 && label === "Room closes") setT("hudLabel", "Closing now!");
+      else if (sec <= 15 && label === "Room closes") setT("hudLabel", "Room closing");
+    }
+    if (V.screen === "game" || V.screen === "exit") {
+      const eat = V.game === "eat";
+      setT("count", String(V.count || 3));
+      setT("gMsg2", V.cd ? (V.mascot ? "Azuzu joined!" : (eat ? "Open wide for yum" : "Keep a straight face")) : (eat ? "Open and close to eat!" : "Keep a straight face"));
+      const mine = Math.round(g.score || 0), theirs = Math.round(g.peerScore || 0), left = Math.max(0, Math.ceil((GAME_MS - (V.el || 0)) / 1000));
+      setT("gSub2", V.cd ? (eat ? "Move your face to the emoji, then open and close your mouth." : "Stay still for a moment (baseline).") : `${eat ? "My score" : "My laugh score"} ${mine}` + (g.solo && !g.mascot ? "" : ` · Them ${theirs}`) + ` · ${left}s left`);
+      $("barMe").firstChild.style.width = $("sMe").style.width || "0"; $("barMe").firstChild.style.background = eat ? "#12b76a" : "#ff6b6b";
+      $("barOp").firstChild.style.width = $("sOpp").style.width || "0"; $("barOp").firstChild.style.background = eat ? "#7dd3a8" : "#ffb020";
+    }
+    if (V.screen === "after" || V.screen === "pay") {
+      const r = RESULTS[V.result] || RESULTS.nopeer;
+      const chip = $("chipEl"); chip.classList.toggle("win", !!V.win);
+      setT("chipT", r[0]); setT("chipS", r[1](V.game === "eat"));
+      const az = !!V.mascot;
+      $("keepBtn").style.display = az ? "none" : "flex";
+      setH("keepPrice", GEM + KEEP_COST);
+      setT("sheetTitle", V.sheetKind === "nogems" ? "Not enough Gems" : "Keep Talking?");
+      setT("sheetBody", V.sheetKind === "nogems" ? `You need ${KEEP_COST} Gems to keep talking. You have ${UI.gems}.` : `Spend ${KEEP_COST} Gems to switch to Video Chat. Your partner doesn’t need to accept.`);
+      $("sheetPay").style.display = V.sheetKind === "nogems" ? "none" : "flex";
+      $("sheetNo").style.display = V.sheetKind === "nogems" ? "flex" : "none";
+    }
+    if (V.screen === "gems") { /* 정적 */ }
+    if (V.screen === "camera") {
+      const off = !!V.off || UI.camDenied;
+      setT("camTitle", off ? "Camera is off" : "Camera and mic");
+      setT("camBody", off ? "Turn on camera and mic in the browser settings to play. Nothing is shared until you both tap Ready." : "Games use your face and voice. Nothing is shared until you and your partner both tap Ready.");
+      document.querySelectorAll("#s-camera .permrow").forEach((el) => el.classList.toggle("off", off));
+      setT("permA", off ? "Off in browser settings" : "Only you can see your preview");
+      setT("permB", off ? "Off in browser settings" : "Voice effects in some games");
+      setT("camAllow", off ? "Try again" : "Allow");
+    }
+    setT("gemTxt3", gemsTxt);
+  }
+
+  // ---------- 사진(내 프로필) ----------
+  function grabPhoto() {
+    if (UI.photo || !state.stream) return;
+    const v = $("localVideo"); if (!v.videoWidth || !state.values) return;
+    const c = document.createElement("canvas"); c.width = c.height = 96;
+    const side = Math.min(v.videoWidth, v.videoHeight), cx = c.getContext("2d");
+    cx.translate(96, 0); cx.scale(-1, 1);
+    cx.drawImage(v, (v.videoWidth - side) / 2, (v.videoHeight - side) / 2, side, side, 0, 0, 96, 96);
+    UI.photo = c.toDataURL("image/jpeg", 0.8);
+    const m = $("me36"); m.style.backgroundImage = `url(${UI.photo})`; m.innerHTML = "";
+  }
+
+  // ---------- 아주주 마스코트 (Azoo 그림 + 파스텔 배경) ----------
+  const azImg = new Image();
+  (function prepAz() {
+    const sym = $("azoo"), grad = document.getElementById("azg");
+    if (!sym || !grad) return;
+    const inner = sym.innerHTML.replace(/var\(--azc,#FF946D\)/g, "#00f59e");
+    const hat = '<g transform="translate(34 -24) rotate(8 24 25)"><rect x="9" y="2" width="30" height="42" rx="3" fill="#111"/><rect x="0" y="40" width="48" height="11" rx="5.5" fill="#111"/></g>';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -34 117.46 163.3" width="470" height="653"><defs>${grad.outerHTML}</defs><g transform="translate(0 0)">${inner.replace(/<defs>[\s\S]*?<\/defs>/, "")}</g>${hat}</svg>`;
+    azImg.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  })();
+  window.__azImg = azImg;
+
+  // ---------- 조작 ----------
+  const on = (id, fn) => $(id).addEventListener("click", fn);
+  on("welTry", () => { UI.welcomed = true; UI.preferAzuzu = true; });
+  on("welLater", () => { UI.welcomed = true; });
+  on("camAllow", async () => {
+    UI.camDenied = false;
+    await startCamera();
+    if (!state.stream) { UI.camDenied = true; return; }
+    try { localStorage.setItem("azar.cam", "1"); } catch (e) {}
+    if (UI.preferAzuzu) { UI.preferAzuzu = false; enterSearching(""); }
+  });
+  on("camLater", () => { UI.camDenied = false; toast("Camera is needed to play"); });
+  on("fewBtn", () => {
+    if (g.note) { g.note = ""; }
+    enterSearching("");
+  });
+  on("fewLink", () => { UI.few = false; UI.waitSince = performance.now(); });
+  on("rBtn", () => { if (!linked() || playing() || g.myReady) return; unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
+  on("rX", () => { nextGame(); });
+  on("wandReady", () => toast("Filters are off in this demo"));
+  on("startBtn2", () => { UI.started = true; });
+  on("skipBtn2", () => { UI.started = false; nextGame(); });
+  on("hudX", () => { if (g.phase === "countdown" || g.phase === "play") UI.exit = true; else if (!UI.dbg) nextGame(); });
+  on("hudShield", () => toast("Report and block (demo)"));
+  on("exitStay", () => { UI.exit = false; });
+  on("exitLeave", () => { UI.exit = false; nextGame(); });
+  on("keepBtn", () => { UI.sheet = UI.gems >= KEEP_COST ? "pay" : "nogems"; });
+  on("newBtn", () => { UI.sheet = null; nextGame(); });
+  on("wandAfter", () => toast("Filters are off in this demo"));
+  on("sheetPay", () => { addGems(-KEEP_COST); UI.sheet = null; sendMsg({ t: "chat" }); enterChat("Video chat connected"); });
+  on("sheetNo", () => { UI.sheet = null; UI.gemsPage = true; });
+  on("sheetClose", () => { UI.sheet = null; });
+  on("sheetNot", () => { UI.sheet = null; });
+  on("cX", () => { nextGame(); });
+  on("cShield", () => toast("Report and block (demo)"));
+  on("gemsClose", () => { UI.gemsPage = false; });
+  on("gemsGet", () => { addGems(500); toast("+500 Gems (demo)"); });
+  document.querySelectorAll("#phone .gemchip").forEach((el) => el.addEventListener("click", () => { if (!UI.dbg) UI.gemsPage = true; }));
+  document.querySelectorAll("#phone .emo").forEach((b) => b.addEventListener("click", () => {
+    if (!linked()) { floatEmoji("remoteFx", b.dataset.e); return; }
+    sendMsg({ t: "emoji", e: b.dataset.e }); floatEmoji("remoteFx", b.dataset.e);
+  }));
+
+  // ---------- 디버그 패널 ----------
+  const sel = $("dbgScreen");
+  sel.innerHTML = '<option value="">(live: follow the real game)</option>' + Object.keys(PRESETS).map((k) => `<option>${esc(k)}</option>`).join("");
+  sel.addEventListener("change", () => { UI.dbg = sel.value || null; });
+  on("dbgGems", () => { UI.gems = 2800; try { localStorage.setItem("azar.gems", "2800"); } catch (e) {} });
+  $("dbgBars").addEventListener("change", (e) => phone.classList.toggle("fakebars", e.target.checked));
+  on("dbgCam", () => { UI.welcomed = true; startCamera(); });
+
+  // ---------- 주기 작업 ----------
+  setInterval(() => {
+    const now = performance.now();
+    // 상대가 한참 안 잡히면 "Few players" 안내 (자동으로 아주주를 붙이지는 않는다. 눌러야 붙는다)
+    if (state.stream && g.phase === "idle" && !linked() && !g.note) {
+      if (!UI.waitSince) UI.waitSince = now;
+      if (now - UI.waitSince > 9000 && !UI.few) UI.few = true;
+    } else { UI.waitSince = 0; if (g.phase !== "idle") UI.few = false; }
+    if (g.phase !== "rules") UI.started = false;
+    if (g.phase !== "countdown" && g.phase !== "play") UI.exit = false;
+    if (g.phase !== "reaction") UI.sheet = null;
+    grabPhoto();
+    renderPhone();
+  }, 100);
+  renderPhone();
+
+  // 이전에 카메라를 허용했다면 소개 화면을 건너뛰고 바로 카메라를 켠다.
+  if (/[?&]autocam/.test(location.search) || localStorage.getItem("azar.cam") === "1") { UI.welcomed = true; startCamera(); }
+
   // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
-  window.__azar = { g, state, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat };
+  window.__azar = { g, state, UI, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
   if (!/nopeer/.test(location.search)) claimSlot(0);
-  startCamera();
 </script>
 </body>
 </html>
