@@ -99,6 +99,12 @@
   #mascot { display: none !important; }
   .m3dgame { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   .cell.mascot .m3dgame { display: block; }
+  #azT { position: absolute; inset: 0; pointer-events: none; display: none; }
+  .cell.mascot #azT { display: block; }
+  #azT img { position: absolute; width: 17%; height: 17%; translate: -50% -50%; }
+  .azshock { position: absolute; width: 22%; height: 22%; translate: -50% -50%; pointer-events: none; animation: azshock .9s ease-out forwards; z-index: 4; }
+  .azshock.good { filter: hue-rotate(95deg) saturate(1.1); }
+  @keyframes azshock { 0% { scale: 0.2; opacity: 0; } 20% { scale: 1.15; opacity: 1; } 35% { scale: 1; } 100% { scale: 1; opacity: 0; translate: -50% -130%; } }
   #phone #remoteCell.mascot { background: linear-gradient(180deg, #dcf7e8, #c7edfa); }
   .cell.mascot #mascot { display: block; }
   .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -593,7 +599,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t13</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t14</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -1346,7 +1352,7 @@
   }
   function onTimeUp() {
     g.timeUpDone = true; g.myFinal = g.score;
-    if (g.mascot) { g.peerFinal = g.mascotFinal; tryFinal(); return; }
+    if (g.mascot) { if (g.game === "eat") g.mascotFinal = Math.round(g.peerScore || 0); g.peerFinal = g.mascotFinal; tryFinal(); return; }
     if (g.solo) { finish("survive"); return; }
     sendMsg({ t: "final", gauge: g.score });
     tryFinal();
@@ -1492,7 +1498,6 @@
         } else if (now - g.openAt > 1500) { g.mouthOpen = false; g.needClose = true; g.openTarget = null; }   // 입을 계속 벌려두는 건 인정 안 함
       }
     }
-    if (g.mascot) g.peerScore = g.mascotFinal * Math.min(1, el / GAME_MS);
     if (now - g.lastSend > 200) { g.lastSend = now; sendMsg({ t: "score", s: g.score }); }
     setMsg("입을 열었다 닫아서 먹어요!", `내 점수 ${fmt(g.score, 0)}` + (g.solo && !g.mascot ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
     setBar(el / GAME_MS);
@@ -2041,7 +2046,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t13  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t14  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2354,6 +2359,11 @@
         const hole = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), dark); hole.scale.set(0.2, 0.01, 0.04); mouthOpen.add(hole);
         const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff6b8a, roughness: 0.5 })); tongue.scale.set(0.1, 0.01, 0.03); tongue.position.set(0, -0.04, 0.012); mouthOpen.add(tongue);
         mouthOpen.visible = false; face.add(mouthOpen);
+        // 필터용 부품: 코와 볼은 평소엔 크기 0, 필터가 걸리면 부풀어 오른다
+        const mint2 = new THREE.MeshPhysicalMaterial({ color: 0x58ffc4, roughness: 0.62, clearcoat: 0.25, clearcoatRoughness: 0.5, emissive: 0x00d98a, emissiveIntensity: 0.6 });
+        const mkPart = (dx, dy, k) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), mint2); m.position.copy(onSphere(dx, dy, k)); m.scale.setScalar(0.0001); face.add(m); return m; };
+        const nose = mkPart(0.12, 0.17, 1.0), cheekL = mkPart(-0.34, 0.04, 0.98), cheekR = mkPart(0.62, 0.06, 0.97);
+        const cur = { mouth: 0, nose: 0, cheek: 0, a: 0, eye: 1 };
         // 고리 화살표: 진짜 3D 고리라서 앞쪽은 몸 앞으로, 뒤쪽은 몸 뒤로 지나간다. 뾰족한 머리가 가는 방향의 앞에 있다.
         const tilt = new THREE.Group(); tilt.rotation.order = "ZXY"; tilt.rotation.set(-1.18, 0, 0.26); tilt.visible = withRing; root.add(tilt);   // 대각선(/)으로 기울여 BI처럼
         const spin = new THREE.Group(); tilt.add(spin);
@@ -2378,7 +2388,21 @@
             open += ((st.eat || 0) - open) * 0.35; pulse = Math.max(pulse * 0.9, st.bump || 0);
             smile.visible = open < 0.12; mouthOpen.visible = open >= 0.12;
             hole.scale.y = 0.01 + open * 0.17; tongue.scale.y = 0.01 + open * 0.07;
-            const sc = 1 + pulse * 0.09; root.scale.set(sc, sc, sc);
+            // 필터: 0 왕입 1 왕코 2 풍선 볼 3 쭉 턱 4 왕이마 5 콩알 얼굴 (-1은 없음)
+            const F = st.filter == null ? -1 : st.filter, L = st.lvl || 0, tg = { mouth: 0, nose: 0, cheek: 0, a: 0, eye: 1 };
+            if (F === 0) { tg.mouth = L; tg.eye = 1 - 0.3 * L; }
+            else if (F === 1) { tg.nose = L; tg.eye = 1 - 0.3 * L; }
+            else if (F === 2) tg.cheek = L;
+            else if (F === 3) tg.a = -0.5 * L;
+            else if (F === 4) { tg.a = 0.4 * L; tg.eye = 1 - 0.2 * L; }
+            else if (F === 5) tg.eye = 1 - 0.45 * L;
+            for (const k in cur) cur[k] += (tg[k] - cur[k]) * 0.2;
+            nose.scale.setScalar(0.0001 + cur.nose * 0.3); cheekL.scale.setScalar(0.0001 + cur.cheek * 0.3); cheekR.scale.setScalar(0.0001 + cur.cheek * 0.3);
+            body.scale.y = 1 + Math.abs(cur.a); body.position.y = cur.a;   // 이마는 위로, 턱은 아래로만 늘어난다
+            if (cur.mouth > 0.05) { smile.visible = false; mouthOpen.visible = true; hole.scale.set(0.2 * (1 + 1.1 * cur.mouth), 0.01 + (0.08 + 0.2 * cur.mouth), 0.04); tongue.scale.set(0.1 * (1 + cur.mouth), 0.01 + 0.09 * cur.mouth, 0.03); }
+            for (const e of eyes) e.scale.x = 0.09 * cur.eye;
+            const base = (st.sc == null ? 1 : st.sc), sc = base * (1 + pulse * 0.09); root.scale.set(sc, sc, sc);
+            root.position.x = st.px || 0; root.position.y += st.py || 0;
             renderer.render(scene, cam);
           }
         };
@@ -2387,22 +2411,61 @@
       const fm = buildMascot(240, 8); fm.canvas.className = "m3d";
       host.insertBefore(fm.canvas, old.nextSibling); old.style.visibility = "hidden";
       const rc = $("remoteCell");
-      const gm = buildMascot(320, 5.4, false); gm.canvas.className = "m3dgame"; rc.insertBefore(gm.canvas, $("mascot"));
-      let last = performance.now(), eatUntil = 0, nextChomp = 0, lastPeer = 0;
+      const gm = buildMascot(320, 5.4, true); gm.canvas.className = "m3dgame"; rc.insertBefore(gm.canvas, $("mascot"));
+      let last = performance.now(), eatUntil = 0;
+      const az = { on: false, x: 0, y: 0, wx: 0, wy: 0, tgt: null, next: 0, done: new Set(), bump: 0 };
+      const azT = document.createElement("div"); azT.id = "azT"; rc.appendChild(azT);
+      const resetAz = () => { az.on = false; az.x = az.y = 0; az.tgt = null; az.next = 0; az.done.clear(); g.azSeq = null; azT.innerHTML = ""; };
+      // 아주주 칸에도 같은 먹이가 보이고, 아주주가 먹은 건 사라진다
+      const syncAzTargets = (list) => {
+        const have = new Map([...azT.children].map((e) => [e.dataset.k, e]));
+        for (const q of list) { if (az.done.has(q.k)) continue; let e = have.get(String(q.k)); if (!e) { e = document.createElement("img"); e.src = EMO_SRC[q.ch]; e.dataset.k = q.k; e.style.left = q.x * 100 + "%"; e.style.top = q.y * 100 + "%"; azT.appendChild(e); } have.delete(String(q.k)); }
+        for (const e of have.values()) e.remove();
+        for (const q of list) if (az.done.has(q.k)) { const e = azT.querySelector(`[data-k="${q.k}"]`); if (e) e.remove(); }
+      };
+      const azShock = (good, wx, wy) => {
+        const e = document.createElement("img"); e.src = EMO_SRC.shock; e.className = "azshock" + (good ? " good" : "");
+        e.style.left = (0.5 + wx / 3.2) * 100 + "%"; e.style.top = (0.5 - wy / 3.2 - 0.18) * 100 + "%"; rc.appendChild(e); setTimeout(() => e.remove(), 950);
+      };
       const tick = () => {
         requestAnimationFrame(tick);
         const scr = phone.dataset.screen; if (document.hidden) { last = performance.now(); return; }
         const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now; const t = now / 1000;
         if (scr === "finding") fm.draw({ t, dt });
         if (rc.classList.contains("mascot") && (scr === "game" || scr === "exit" || scr === "after" || scr === "pay")) {
-          // 아주주가 점수를 얻을 때마다 튀고, 고진감래에서는 주기적으로 먹는 입을 한다
-          let bump = 0;
-          if (g.phase === "play" && g.game === "eat") {
-            if ((g.peerScore || 0) > lastPeer + 0.5) { bump = 1; eatUntil = now + 450; }
-            if (t > nextChomp) { eatUntil = now + 380; nextChomp = t + 1.1 + Math.random() * 1.3; }
+          const st = { t, dt };
+          const live = g.phase === "play" && g.mascot;
+          if (!live) { if (az.on) resetAz(); }
+          else if (g.game === "eat") {
+            st.sc = 0.5; az.on = true;
+            const list = state.eatTargets || [];
+            syncAzTargets(list);
+            if (az.tgt) { const q = list.find((o) => o.k === az.tgt); if (!q || az.done.has(q.k)) { az.tgt = null; az.next = now + 250; } else { az.wx = (q.x - 0.5) * 3.2; az.wy = -(q.y - 0.5) * 3.2; } }
+            if (!az.tgt && now > az.next) {
+              const pool = list.filter((o) => !az.done.has(o.k)), good = pool.filter((o) => o.pts > 0), pick = (Math.random() < 0.82 && good.length ? good : pool);
+              if (pick.length) { const q = pick[Math.floor(Math.random() * pick.length)]; az.tgt = q.k; az.wx = (q.x - 0.5) * 3.2; az.wy = -(q.y - 0.5) * 3.2; }
+              else az.next = now + 200;
+            }
+            if (az.tgt) {
+              az.x += (az.wx - az.x) * Math.min(1, dt * 5.5); az.y += (az.wy - az.y) * Math.min(1, dt * 5.5);
+              if (Math.hypot(az.wx - az.x, az.wy - az.y) < 0.14) {
+                const q = list.find((o) => o.k === az.tgt);
+                if (q) {
+                  az.done.add(q.k); g.peerScore = Math.max(0, (g.peerScore || 0) + q.pts);
+                  eatUntil = now + 420; az.bump = 1; azShock(q.pts > 0, az.x, az.y);
+                }
+                az.tgt = null; az.next = now + 450 + Math.random() * 550;
+              }
+            }
+            st.px = az.x; st.py = az.y;
+            st.eat = now < eatUntil ? 1 : 0; st.bump = az.bump || 0; az.bump = 0;
+          } else {
+            // 웃음참기: 아주주도 우리와 똑같이 4초마다 필터가 바뀐다
+            if (!g.azSeq) g.azSeq = makeSeqs()[1];
+            const el = now - g.playAt, step = Math.floor(el / STEP_MS), ramp = Math.min(1, (el % STEP_MS) / 500);
+            st.filter = g.azSeq[step % g.azSeq.length]; st.lvl = ramp * ramp * (3 - 2 * ramp);
           }
-          lastPeer = g.peerScore || 0;
-          gm.draw({ t, dt, eat: now < eatUntil ? 1 : 0, bump });
+          gm.draw(st);
         }
       };
       tick();
