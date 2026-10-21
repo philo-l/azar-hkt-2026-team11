@@ -600,7 +600,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t17</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t18</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -2105,7 +2105,7 @@
         cctx.restore();
       }
       drawTargets();
-      if (g.game === "meow" && g.run && (g.phase === "countdown" || g.phase === "play")) { if (runMine) { cctx.fillStyle = "rgba(10,8,20,.5)"; cctx.fillRect(0, 0, CW, CW); { const fc = state.values && vid.videoWidth ? toComp(state.values, vid) : null; runMine.setFace(vid, fc ? { x: fc.F[0], y: fc.F[1], w: fc.fw } : null); } runMine.draw(g.run, performance.now()); cctx.drawImage(runMine.canvas, 0, 0, CW, CW); } else drawRunner(cctx, CW, g.run, performance.now(), false); }
+      if (g.game === "meow" && g.run && (g.phase === "countdown" || g.phase === "play")) { if (runMine) { cctx.fillStyle = "rgba(10,8,20,.28)"; cctx.fillRect(0, 0, CW, CW); { const fc = state.values && vid.videoWidth ? toComp(state.values, vid) : null; runMine.setFace(vid, fc ? { x: fc.F[0], y: fc.F[1], w: fc.fw } : null); } runMine.draw(g.run, performance.now()); cctx.drawImage(runMine.canvas, 0, 0, CW, CW); } else drawRunner(cctx, CW, g.run, performance.now(), false); }
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
     octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
@@ -2205,7 +2205,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t17  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t18  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2575,7 +2575,7 @@
         const canvas = document.createElement("canvas");
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
         renderer.setPixelRatio(1); renderer.setSize(size, size, false); renderer.outputColorSpace = THREE.SRGBColorSpace;
-        const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(48, 1, 0.1, 90); cam.position.set(0, 4.8, 6.0); cam.lookAt(0, 0.5, 0.9);
+        const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(56, 1, 0.1, 90); cam.position.set(0, 5.4, 7.4); cam.lookAt(0, 0.5, 0.9); cam.setViewOffset(size, size, size * 0.06, -size * 0.3, size, size);   // 길을 화면 아래쪽 띠로 내려서 뒤의 내 얼굴이 보이게
         scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a9a, 1.15)); const sun = new THREE.DirectionalLight(0xfff0dd, 1.5); sun.position.set(-2, 6, 4); scene.add(sun);
         const world = new THREE.Group(); world.rotation.y = 0.62; scene.add(world);   // 고양이가 원점. 길을 비스듬히 돌려 대각선으로
         const LW = 2.3, LEN = 90;
@@ -2649,7 +2649,7 @@
             laneTex.offset.y = -(R.p * UNIT) / (LEN / 20);
             R.obs.forEach((t, i) => { const z = (runX(i) - R.p) * UNIT; obsG[i].position.z = z; obsG[i].visible = z > -1.6 && z < 8.5; });
             goal.position.z = (RUN_GOAL - R.p) * UNIT; goal.visible = goal.position.z < 12 && goal.position.z > -3;
-            const sh = R.shape, sq = Math.max(0, sh), sl = Math.max(0, -sh), K = 1.45;
+            const sh = R.shape, sq = Math.max(0, sh), sl = Math.max(0, -sh), K = 1.5;
             cat.scale.set((1 + 0.5 * sq) * (1 - 0.6 * sl) * K, (1 - 0.6 * sq) * (1 + 0.14 * sl) * K, K);
             const sw = Math.sin(R.legs) * 0.6; legs[0].rotation.x = sw; legs[3].rotation.x = sw; legs[1].rotation.x = -sw; legs[2].rotation.x = -sw;
             cat.position.y = Math.abs(Math.sin(R.legs)) * 0.05; cat.position.x = R.knock > 0 ? Math.sin(now / 30) * 0.06 : 0; cat.position.z = R.knock > 0 ? -0.0 : 0;
