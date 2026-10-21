@@ -600,7 +600,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t18</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t19</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -733,6 +733,9 @@
       <section class="card">
         <h2>화면 미리보기</h2>
         <div class="row"><select id="dbgScreen" aria-label="화면 미리보기"></select></div>
+        <h2 style="margin-top:14px">다음 게임 고르기</h2>
+        <div class="row"><select id="dbgGame" aria-label="다음 게임"><option value="">자동 (돌아가며)</option><option value="laugh">Crack Up (웃음참기)</option><option value="eat">Yum or Yuck (고진감래)</option><option value="meow">Squash &amp; Squeak</option></select></div>
+        <p class="small">두 명 중 아무나 골라도 돼요. 고른 게임으로 다음 판이 시작돼요. 아주주와 할 때도 적용돼요.</p>
         <div class="row" style="margin-top:8px">
           <button id="dbgGems" class="ghost" type="button">젬 2,800으로 초기화</button>
           <button id="dbgCam" class="ghost" type="button">카메라 켜기</button>
@@ -1198,6 +1201,7 @@
       g.myReady = false; g.peerReady = false; ui();
       chip("chipLink", "ok", "연결됨");
       log("데이터 연결 열림");
+      if (g.pickGame) sendMsg({ t: "pick", game: g.pickGame });
       clearInterval(pingTimer); clearInterval(valuesTimer);
       pingTimer = setInterval(() => { if (c.open) c.send({ t: "ping", ts: performance.now() }); }, 2000);
       valuesTimer = setInterval(() => {
@@ -1316,7 +1320,7 @@
   }
 
   const GAMES = ["laugh", "eat", "meow"];
-  const nextGameId = () => g.lastGame ? GAMES[(GAMES.indexOf(g.lastGame) + 1) % GAMES.length] : GAMES[Math.floor(Math.random() * GAMES.length)];
+  const nextGameId = () => g.pickGame ? g.pickGame : g.lastGame ? GAMES[(GAMES.indexOf(g.lastGame) + 1) % GAMES.length] : GAMES[Math.floor(Math.random() * GAMES.length)];
   const higherWins = (game) => game === "eat" || game === "meow";
   function checkStart() {
     if (g.myReady && g.peerReady && isHost() && !playing()) {
@@ -1442,6 +1446,7 @@
       case "ready": g.peerReady = true; checkStart(); return true;
       case "go": if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0], d.game || "laugh", d.seed || 1); return true;
       case "score": g.peerScore = d.s; return true;
+      case "pick": g.pickGame = d.game || null; return true;
       case "chat": enterChat("Your partner switched to video chat"); return true;
       case "leave": clearTimeout(g.finalTimer); clearTimeout(g.koTimer); g.phase = "moved"; g.movedEnd = performance.now() + 2000; setLive(false); setVoice(null); state.filterStage = -1; state.eatTargets = []; ui(); return true;
       case "ko": g.peerKO = true; if (g.phase === "play" && !g.myKO) finish("ko_win"); return true;
@@ -2205,7 +2210,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t18  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t19  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2388,7 +2393,7 @@
     if (V.screen === "ready" || V.screen === "rules") {
       const pr = !!V.pr, mr = !!V.mr;
       const bd = $("pBadge"); bd.className = "badge" + (pr ? " ok" : "");
-      bd.innerHTML = pr ? ico("ic-check") + PARTNER + " is ready" : '<i class="spin"></i>' + PARTNER + " is deciding...";
+      { const k = pr ? "r" : "d"; if (bd.dataset.k !== k) { bd.dataset.k = k; bd.innerHTML = pr ? ico("ic-check") + PARTNER + " is ready" : '<i class="spin"></i>' + PARTNER + " is deciding..."; } }   // 매 번 다시 쓰면 스피너 애니메이션이 처음부터 다시 시작해 덜덜거린다
       const rb = $("rBtn"); rb.classList.toggle("dis", mr);
       const label = mr ? "Waiting for " + PARTNER + "..." : "Ready";
       setH("rBtnTxt", (mr ? "" : ico("ic-personok")) + esc(label));
@@ -2822,6 +2827,7 @@
   const sel = $("dbgScreen");
   sel.innerHTML = '<option value="">(live: follow the real game)</option>' + Object.keys(PRESETS).map((k) => `<option>${esc(k)}</option>`).join("");
   sel.addEventListener("change", () => { UI.dbg = sel.value || null; });
+  $("dbgGame").addEventListener("change", (e) => { g.pickGame = e.target.value || null; sendMsg({ t: "pick", game: g.pickGame }); log("다음 게임: " + (g.pickGame || "자동")); });
   on("dbgGems", () => { UI.gems = 2800; try { localStorage.setItem("azar.gems", "2800"); } catch (e) {} });
   $("dbgBars").addEventListener("change", (e) => phone.classList.toggle("fakebars", e.target.checked));
   on("dbgCam", () => { UI.welcomed = true; startCamera(); });
