@@ -96,7 +96,10 @@
   }
   #localVideo { opacity: 0; }
   #overlay { display: none; }
-  #mascot { display: none; }
+  #mascot { display: none !important; }
+  .m3dgame { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
+  .cell.mascot .m3dgame { display: block; }
+  #phone #remoteCell.mascot { background: linear-gradient(180deg, #dcf7e8, #c7edfa); }
   .cell.mascot #mascot { display: block; }
   .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
   .pop { position: absolute; bottom: 8%; font-size: 48px; animation: rise 1.8s ease-out forwards; }
@@ -261,7 +264,7 @@
   #phone[data-few="1"] #s-finding .few { display: block; }
   #phone[data-few="1"] #s-finding .many { display: none; }
   #s-finding .few .btn { position: absolute; left: 24px; top: 668px; width: 345px; }
-  #s-finding .few .tbtn { position: absolute; left: 24px; top: 730px; width: 345px; color: #aaa; font-weight: 400; font-size: 15px; }
+  #s-finding .few .tbtn { position: absolute; left: 24px; top: 730px; width: 345px; text-align: center; color: #72f4a8; font-weight: 600; font-size: 15px; }
 
   /* 토스트 */
   #phone .toast { position: absolute; left: 25px; top: 60px; width: 343px; height: 49px; border-radius: 10px; background: #f4f4f4; color: #111; font: 700 14px/49px "Noto Sans"; padding: 0 16px; z-index: 50; pointer-events: none; display: none; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
@@ -1410,7 +1413,8 @@
     ui();
   }
   function startMascotRound() {
-    const game = g.lastGame === "laugh" ? "eat" : "laugh";
+    const game = "eat";   // 아주주와는 고진감래(Yum or Yuck)만 한다
+    state.matchMode = "mascot";
     $("remoteCell").classList.add("has-stream", "mascot");
     beginRound(true, makeSeqs()[0], null, game, Math.floor(Math.random() * 1e9));
     g.opp = "mascot"; g.mascot = true; g.mascotFinal = game === "eat" ? 70 : 45;
@@ -2137,6 +2141,7 @@
     "ready: I am ready": { screen: "ready", pr: 0, mr: 1 }, "ready: both": { screen: "ready", pr: 1, mr: 1 },
     "rules: Crack Up": { screen: "rules", pr: 1, mr: 1, game: "laugh", startFrac: 0.4 }, "rules: Yum or Yuck": { screen: "rules", pr: 1, mr: 1, game: "eat", startFrac: 0.4 },
     "game: countdown": { screen: "game", cd: true, count: 3, game: "laugh" }, "game: Crack Up": { screen: "game", play: true, game: "laugh", el: 12000 }, "game: Yum or Yuck": { screen: "game", play: true, game: "eat", el: 9000 }, "game: exit confirm": { screen: "exit", play: true, game: "laugh", el: 9000 },
+    "game: Yum or Yuck (Azuzu)": { screen: "game", play: true, game: "eat", el: 12000, mascot: true },
     "after: win": { screen: "after", result: "win", win: true, game: "laugh" }, "after: lose": { screen: "after", result: "lose", game: "laugh" }, "after: draw": { screen: "after", result: "draw", game: "laugh" },
     "after: win (Yum or Yuck)": { screen: "after", result: "win", win: true, game: "eat" },
     "keep talking: pay": { screen: "pay", sheetKind: "pay", result: "win", win: true, game: "laugh" }, "keep talking: not enough Gems": { screen: "pay", sheetKind: "nogems", result: "win", win: true, game: "laugh" },
@@ -2191,7 +2196,7 @@
       setT("fConn", `Seat: ${cp} · Link: ${cl}` + (last ? "\n" + last : ""));
       $("fConn").style.whiteSpace = "pre-line";
       setT("fewBtn", v === "left" ? "New Match" : "Keep waiting");
-      $("fewLink").style.display = "none";
+      $("fewLink").style.display = v === "few" ? "block" : "none"; setT("fewLink", "Play Yum or Yuck with Azuzu");
     }
 
     // Ready
@@ -2296,58 +2301,90 @@
   async function initMascot3D() {
     try {
       const THREE = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js");
+      // 아주주 한 마리를 만든다. size는 캔버스 한 변(CSS px), camZ가 작을수록 크게 보인다.
+      const buildMascot = (size, camZ, withRing = true) => {
+        const canvas = document.createElement("canvas");
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(size, size, false);
+        renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
+        const scene = new THREE.Scene();
+        const cam = new THREE.PerspectiveCamera(33, 1, 0.1, 50); cam.position.set(0, 0, camZ);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x3fbf94, 1.35));
+        const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-2.5, 3, 4); scene.add(key);
+        const rim = new THREE.DirectionalLight(0x9affdc, 1.1); rim.position.set(3, 1, -3); scene.add(rim);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.35); fill.position.set(3, -2, 3); scene.add(fill);
+        const root = new THREE.Group(); scene.add(root);
+        const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0x00f59e, roughness: 0.36, metalness: 0, clearcoat: 0.9, clearcoatRoughness: 0.14, emissive: 0x00d98a, emissiveIntensity: 0.7 });
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), bodyMat); root.add(body);
+        const onSphere = (dx, dy, k = 1.0) => { const z = Math.sqrt(Math.max(0, 1 - dx * dx - dy * dy)); return new THREE.Vector3(dx, dy, z).multiplyScalar(k); };
+        const dark = new THREE.MeshPhysicalMaterial({ color: 0x0b0b0b, roughness: 0.25, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+        const face = new THREE.Group(); face.rotation.set(0.24, -0.42, 0); root.add(face);
+        const eyes = [];
+        for (const [dx, dy] of [[-0.1, 0.34], [0.38, 0.4]]) {
+          const e = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), dark); e.scale.set(0.09, 0.115, 0.05);
+          const p = onSphere(dx, dy, 1.0); e.position.copy(p); e.lookAt(p.clone().multiplyScalar(2)); face.add(e); eyes.push(e);
+        }
+        // 웃는 입(덜 삐뚤게): 양쪽 끝이 비슷한 높이에서 살짝만 올라간다
+        const pts = [[-0.03, 0.09], [0.1, 0.03], [0.24, 0.03], [0.36, 0.09], [0.4, 0.14]].map(([x, y]) => onSphere(x, y, 1.012));
+        const smile = new THREE.Group();
+        smile.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.045, 10, false), dark));
+        for (const p of [pts[0], pts[pts.length - 1]]) { const c = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), dark); c.position.copy(p); smile.add(c); }
+        face.add(smile);
+        // 먹을 때 벌어지는 입
+        const mouthOpen = new THREE.Group(); const mc = onSphere(0.19, 0.06, 1.01); mouthOpen.position.copy(mc); mouthOpen.lookAt(mc.clone().multiplyScalar(2));
+        const hole = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), dark); hole.scale.set(0.2, 0.01, 0.04); mouthOpen.add(hole);
+        const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff6b8a, roughness: 0.5 })); tongue.scale.set(0.1, 0.01, 0.03); tongue.position.set(0, -0.04, 0.012); mouthOpen.add(tongue);
+        mouthOpen.visible = false; face.add(mouthOpen);
+        // 고리 화살표: 진짜 3D 고리라서 앞쪽은 몸 앞으로, 뒤쪽은 몸 뒤로 지나간다. 뾰족한 머리가 가는 방향의 앞에 있다.
+        const tilt = new THREE.Group(); tilt.rotation.order = "ZXY"; tilt.rotation.set(1.05, 0, 0.62); tilt.visible = withRing; root.add(tilt);   // 대각선(/)으로 기울여 BI처럼
+        const spin = new THREE.Group(); tilt.add(spin);
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0x4d4d4d, roughness: 0.4, metalness: 0.1 });
+        const R = 1.55, arc = Math.PI * 2 * 0.84;
+        spin.add(new THREE.Mesh(new THREE.TorusGeometry(R, 0.078, 18, 140, arc), ringMat));
+        const head = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.42, 28), ringMat);
+        head.position.set(Math.cos(arc) * R, Math.sin(arc) * R, 0); head.rotation.z = arc; spin.add(head);
+        const tailCap = new THREE.Mesh(new THREE.SphereGeometry(0.078, 14, 10), ringMat); tailCap.position.set(R, 0, 0); spin.add(tailCap);
+        let tx = 0, ty = 0, px = 0, py = 0, blinkAt = 0, open = 0, pulse = 0;
+        phone.addEventListener("pointermove", (ev) => { const r = phone.getBoundingClientRect(); tx = ((ev.clientX - r.left) / r.width - 0.5) * 2; ty = ((ev.clientY - r.top) / r.height - 0.5) * 2; });
+        return {
+          canvas,
+          // st: { t(초), dt(초), eat(입 벌림 목표 0~1), bump(0~1 한 번 튀기) }
+          draw(st) {
+            const t = st.t;
+            spin.rotation.z += st.dt * 1.15;   // 화살표 머리가 가는 방향이 앞이 되도록 같은 방향으로 돈다
+            root.position.y = Math.sin(t * 1.8) * 0.07; body.rotation.z = Math.sin(t * 1.1) * 0.04;
+            px += (tx - px) * 0.06; py += (ty - py) * 0.06; root.rotation.y = px * 0.35; root.rotation.x = py * 0.22;
+            if (t > blinkAt) { blinkAt = t + 2.6 + Math.random() * 2; eyes.forEach((e) => (e.userData.blink = t)); }
+            for (const e of eyes) { const b = e.userData.blink; const k = b !== undefined && t - b < 0.16 ? Math.max(0.1, Math.abs((t - b) / 0.08 - 1)) : 1; e.scale.y = 0.115 * k; }
+            open += ((st.eat || 0) - open) * 0.35; pulse = Math.max(pulse * 0.9, st.bump || 0);
+            smile.visible = open < 0.12; mouthOpen.visible = open >= 0.12;
+            hole.scale.y = 0.01 + open * 0.17; tongue.scale.y = 0.01 + open * 0.07;
+            const sc = 1 + pulse * 0.09; root.scale.set(sc, sc, sc);
+            renderer.render(scene, cam);
+          }
+        };
+      };
       const host = $("s-finding"), old = host.querySelector(".mascot");
-      const canvas = document.createElement("canvas"); canvas.className = "m3d";
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      renderer.setPixelRatio(dpr); renderer.setSize(240, 240, false);
-      renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
-      const scene = new THREE.Scene();
-      const cam = new THREE.PerspectiveCamera(33, 1, 0.1, 50); cam.position.set(0, 0, 8);
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x3fbf94, 1.35));
-      const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-2.5, 3, 4); scene.add(key);
-      const rim = new THREE.DirectionalLight(0x9affdc, 1.1); rim.position.set(3, 1, -3); scene.add(rim);
-      const fill = new THREE.DirectionalLight(0xffffff, 0.35); fill.position.set(3, -2, 3); scene.add(fill);
-      const root = new THREE.Group(); scene.add(root);
-      // 몸: 광택 있는 민트 구
-      const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0x00f59e, roughness: 0.36, metalness: 0, clearcoat: 0.9, clearcoatRoughness: 0.14, emissive: 0x00d98a, emissiveIntensity: 0.7 });
-      const body = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), bodyMat); root.add(body);
-      // 얼굴은 몸 표면에 붙인다 (2D 아바타의 눈과 입 위치를 구 위로 옮긴 값)
-      const onSphere = (dx, dy, k = 1.0) => { const z = Math.sqrt(Math.max(0, 1 - dx * dx - dy * dy)); return new THREE.Vector3(dx, dy, z).multiplyScalar(k); };
-      const dark = new THREE.MeshPhysicalMaterial({ color: 0x0b0b0b, roughness: 0.25, clearcoat: 0.8, clearcoatRoughness: 0.2 });
-      const face = new THREE.Group(); face.rotation.set(0.28, -0.4, 0); root.add(face);   // 2D 아바타처럼 얼굴이 오른쪽 위로 살짝 쏠려 있는 것을 정면으로 당겨 온다
-      const eyes = [];
-      for (const [dx, dy] of [[-0.1, 0.36], [0.42, 0.46]]) {
-        const e = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), dark); e.scale.set(0.09, 0.115, 0.05);
-        const p = onSphere(dx, dy, 1.0); e.position.copy(p); e.lookAt(p.clone().multiplyScalar(2)); face.add(e); eyes.push(e);
-      }
-      const pts = [[0.02, 0.1], [0.18, 0.03], [0.34, 0.1], [0.46, 0.22], [0.5, 0.3]].map(([x, y]) => onSphere(x, y, 1.012));
-      const smile = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.045, 10, false), dark); face.add(smile);
-      for (const p of [pts[0], pts[pts.length - 1]]) { const c = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), dark); c.position.copy(p); face.add(c); }
-      // 고리 화살표: 진짜 3D 고리라서 앞쪽은 몸 앞으로, 뒤쪽은 몸 뒤로 지나간다
-      const tilt = new THREE.Group(); tilt.rotation.set(1.02, 0, -0.38); root.add(tilt);
-      const spin = new THREE.Group(); tilt.add(spin);
-      const ringMat = new THREE.MeshStandardMaterial({ color: 0x4d4d4d, roughness: 0.4, metalness: 0.1 });
-      const R = 1.55, arc = Math.PI * 2 * 0.84;
-      spin.add(new THREE.Mesh(new THREE.TorusGeometry(R, 0.078, 18, 140, arc), ringMat));
-      const head = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.42, 28), ringMat);
-      head.position.set(Math.cos(arc) * R, Math.sin(arc) * R, 0); head.rotation.z = arc; spin.add(head);
-      for (const a of [0]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(0.078, 14, 10), ringMat); cap.position.set(Math.cos(a) * R, Math.sin(a) * R, 0); spin.add(cap); }
-      // 포인터를 살짝 따라본다
-      let tx = 0, ty = 0, px = 0, py = 0;
-      phone.addEventListener("pointermove", (ev) => { const r = phone.getBoundingClientRect(); tx = ((ev.clientX - r.left) / r.width - 0.5) * 2; ty = ((ev.clientY - r.top) / r.height - 0.5) * 2; });
-      host.insertBefore(canvas, old.nextSibling); old.style.visibility = "hidden";
-      let last = performance.now(), blinkAt = 0;
+      const fm = buildMascot(240, 8); fm.canvas.className = "m3d";
+      host.insertBefore(fm.canvas, old.nextSibling); old.style.visibility = "hidden";
+      const rc = $("remoteCell");
+      const gm = buildMascot(320, 5.4, false); gm.canvas.className = "m3dgame"; rc.insertBefore(gm.canvas, $("mascot"));
+      let last = performance.now(), eatUntil = 0, nextChomp = 0, lastPeer = 0;
       const tick = () => {
         requestAnimationFrame(tick);
-        if (phone.dataset.screen !== "finding" || document.hidden) { last = performance.now(); return; }
+        const scr = phone.dataset.screen; if (document.hidden) { last = performance.now(); return; }
         const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now; const t = now / 1000;
-        spin.rotation.z -= dt * 1.15;
-        root.position.y = Math.sin(t * 1.8) * 0.07; body.rotation.z = Math.sin(t * 1.1) * 0.04;
-        px += (tx - px) * 0.06; py += (ty - py) * 0.06; root.rotation.y = px * 0.35; root.rotation.x = py * 0.22;
-        if (t > blinkAt) { blinkAt = t + 2.6 + Math.random() * 2; eyes.forEach((e) => (e.userData.blink = t)); }
-        for (const e of eyes) { const b = e.userData.blink; const k = b !== undefined && t - b < 0.16 ? Math.max(0.1, Math.abs((t - b) / 0.08 - 1)) : 1; e.scale.y = 0.105 * k; }
-        renderer.render(scene, cam);
+        if (scr === "finding") fm.draw({ t, dt });
+        if (rc.classList.contains("mascot") && (scr === "game" || scr === "exit" || scr === "after" || scr === "pay")) {
+          // 아주주가 점수를 얻을 때마다 튀고, 고진감래에서는 주기적으로 먹는 입을 한다
+          let bump = 0;
+          if (g.phase === "play" && g.game === "eat") {
+            if ((g.peerScore || 0) > lastPeer + 0.5) { bump = 1; eatUntil = now + 450; }
+            if (t > nextChomp) { eatUntil = now + 380; nextChomp = t + 1.1 + Math.random() * 1.3; }
+          }
+          lastPeer = g.peerScore || 0;
+          gm.draw({ t, dt, eat: now < eatUntil ? 1 : 0, bump });
+        }
       };
       tick();
       log("3D 아주주 준비됨");
@@ -2410,6 +2447,7 @@
     try { localStorage.setItem("azar.cam", "1"); } catch (e) {}
   });
   on("camLater", () => { UI.camDenied = false; toast("Camera is needed to play"); });
+  on("fewLink", () => { if (!state.landmarker || !state.stream) { toast("Camera is needed to play"); return; } unlockAudio(); UI.few = false; UI.waitSince = 0; startMascotRound(); });
   on("fewBtn", () => {
     if (g.note) { g.note = ""; UI.few = false; UI.waitSince = 0; enterSearching(""); }   // 상대가 나간 뒤 New Match
     else { UI.few = false; UI.waitSince = performance.now(); }                          // 계속 기다리기
