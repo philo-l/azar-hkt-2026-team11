@@ -600,7 +600,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t21</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t22</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -1336,11 +1336,11 @@
   // 웃음 참기는 카운트다운 동안 무표정 기준선을 잰다.
   function startBaseline() { if (g.game === "laugh" && !state.collecting) { state.baseline = null; state.autoBaseDone = true; saveBaseline(); } }
 
-  function beginRound(solo, mySeq, peerSeq, game = "laugh", seed = 1) {
+  function beginRound(solo, mySeq, peerSeq, game = "laugh", seed = 1, withRules = !solo) {
     g.mascot = false;
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     const now = performance.now();
-    Object.assign(g, { phase: (solo ? 0 : RULES_MS) ? "rules" : "countdown", rulesAt: now + (solo ? 0 : RULES_MS), solo, myReady: false, peerReady: false, playAt: now + (solo ? 0 : RULES_MS) + COUNT_MS, roomEnd: now + (solo ? 0 : RULES_MS) + COUNT_MS + ROOM_MS, won: false, result: null, rewarded: false,
+    Object.assign(g, { phase: withRules ? "rules" : "countdown", rulesAt: Infinity, myStart: false, peerStart: false, solo, myReady: false, peerReady: false, playAt: withRules ? Infinity : now + COUNT_MS, roomEnd: withRules ? Infinity : now + COUNT_MS + ROOM_MS, won: false, result: null, rewarded: false,
       score: 0, peerScore: 0, lastT: 0, lastSend: 0, crackLvl: 0, popAcc: 0, lastPop: 0, myFinal: null, peerFinal: null,
       finalTimer: null, timeUpDone: false, note: "", mySeq, peerSeq, myKO: false, peerKO: false, koTimer: null,
       game, seed, lastGame: game, eaten: new Set(), mouthOpen: false, needClose: false, openTarget: null, openAt: 0 });
@@ -1349,6 +1349,7 @@
     setGameLabels(game);
     state.filterStage = -1; setVoice(null); state.voiceFor = null;
     Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0;
+    UI.started = false;
     if (g.phase === "countdown") startBaseline();
     setLive(true);
     log(solo ? "혼자 해보기 시작" : "게임 시작");
@@ -1436,7 +1437,7 @@
   function startMascotRound(game = "eat") {
     state.matchMode = "mascot";
     $("remoteCell").classList.add("has-stream", "mascot");
-    beginRound(true, makeSeqs()[0], null, game, Math.floor(Math.random() * 1e9));
+    beginRound(true, makeSeqs()[0], null, game, Math.floor(Math.random() * 1e9), true);
     g.opp = "mascot"; g.mascot = true; g.mascotFinal = game === "laugh" ? 45 : 70;
     chip("chipLink", "ok", "Azuzu");
   }
@@ -1447,6 +1448,7 @@
       case "go": if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0], d.game || "laugh", d.seed || 1); return true;
       case "score": g.peerScore = d.s; return true;
       case "pick": g.pickGame = d.game || null; return true;
+      case "rstart": g.peerStart = true; return true;
       case "chat": enterChat("Your partner switched to video chat"); return true;
       case "leave": clearTimeout(g.finalTimer); clearTimeout(g.koTimer); g.phase = "moved"; g.movedEnd = performance.now() + 2000; setLive(false); setVoice(null); state.filterStage = -1; state.eatTargets = []; ui(); return true;
       case "ko": g.peerKO = true; if (g.phase === "play" && !g.myKO) finish("ko_win"); return true;
@@ -1553,6 +1555,13 @@
   }
   // 그리기: 뒤에서 본 골목길. W는 캔버스 한 변.
   let runMine = null, runAz = null;
+  function drawVoicePill() {
+    const cls = voice.cls, txt = voice.echo && !cls ? "🎧 echo ignored" : cls < 0 ? "↑ HIGH · slim" : cls > 0 ? "↓ LOW · flat" : "🎤 say “meow~”", col = cls < 0 ? "#00f59e" : cls > 0 ? "#ffb020" : "#cfcfcf";
+    cctx.save(); cctx.font = "800 26px sans-serif"; cctx.textAlign = "center"; cctx.textBaseline = "middle";
+    const w = cctx.measureText(txt).width + 44, x = CW / 2 - w / 2, y = 16;
+    cctx.fillStyle = "rgba(10,10,16,.72)"; cctx.beginPath(); cctx.roundRect(x, y, w, 46, 23); cctx.fill(); cctx.lineWidth = 3; cctx.strokeStyle = col; cctx.stroke();
+    cctx.fillStyle = col; cctx.fillText(txt, CW / 2, y + 24); cctx.restore();
+  }
   let catC = null;
   function drawRunner(c, W, R, now, bg) {
     const hz = W * 0.36, gy = W * 0.9, S = (d) => 1 / (1 + Math.max(-0.5, d) * 0.85), halfAt = (s) => W * (0.07 + 0.4 * s), yAt = (s) => hz + (gy - hz) * s;
@@ -1704,11 +1713,18 @@
       if (now >= g.roomEnd) expire();
       return;
     }
-    if (g.phase === "rules") { setMsg("Check the rules", ""); if (now >= g.rulesAt) { g.phase = "countdown"; startBaseline(); } return; }
+    if (g.phase === "rules") {
+      setMsg("Check the rules", g.myStart && !g.peerStart && !g.solo ? "상대가 Start를 누르길 기다리는 중" : "Start를 눌러 시작");
+      if (g.myStart && (g.peerStart || g.solo)) {   // 둘 다 Start를 눌러야 시작한다 (아주주는 바로 동의)
+        const t = performance.now(); g.phase = "countdown"; g.playAt = t + (g.game === "meow" ? 7000 : COUNT_MS); g.roomEnd = g.playAt + ROOM_MS; g.runT = t; startBaseline();
+      }
+      return;
+    }
     if (g.phase === "countdown") {
-      setMsg(String(Math.max(1, Math.ceil((g.playAt - now) / 1000))), (g.game === "eat" ? "얼굴을 움직여 입을 이모지에 대고, 입을 열었다 닫아서 먹어요!" : "무표정으로 가만히 있어요 (기준선 측정)") + roomText(now));
+      setMsg(String(Math.max(1, Math.ceil((g.playAt - now) / 1000))), (g.game === "meow" ? "연습해 보세요! 높은 미야오~ = 날씬, 낮은 미야오~ = 납작" : g.game === "eat" ? "얼굴을 움직여 입을 이모지에 대고, 입을 열었다 닫아서 먹어요!" : "무표정으로 가만히 있어요 (기준선 측정)") + roomText(now));
       setBar(0);
-      if (now >= g.playAt) { g.phase = "play"; g.lastT = now; }
+      if (g.game === "meow" && g.run) { const dt = Math.min(0.1, Math.max(0, (now - (g.runT || now)) / 1000)); g.runT = now; const cls = readVoice(now); g.run.shape += ((cls < 0 ? -1 : cls > 0 ? 1 : 0) - g.run.shape) * Math.min(1, dt * 9); g.run.legs += dt * 3; }   // 카운트다운 동안 연습: 모양만 바뀌고 앞으로는 가지 않는다
+      if (now >= g.playAt) { g.phase = "play"; g.lastT = now; g.runT = now; }
       return;
     }
     if (g.phase === "play") {
@@ -2124,7 +2140,7 @@
         cctx.restore();
       }
       drawTargets();
-      if (g.game === "meow" && g.run && (g.phase === "countdown" || g.phase === "play")) { if (runMine) { cctx.fillStyle = "rgba(10,8,20,.28)"; cctx.fillRect(0, 0, CW, CW); { const fc = state.values && vid.videoWidth ? toComp(state.values, vid) : null; runMine.setFace(vid, fc ? { x: fc.F[0], y: fc.F[1], w: fc.fw } : null); } runMine.draw(g.run, performance.now()); cctx.drawImage(runMine.canvas, 0, 0, CW, CW); } else drawRunner(cctx, CW, g.run, performance.now(), false); }
+      if (g.game === "meow" && g.run && (g.phase === "countdown" || g.phase === "play")) { if (runMine) { cctx.fillStyle = "rgba(10,8,20,.28)"; cctx.fillRect(0, 0, CW, CW); { const fc = state.values && vid.videoWidth ? toComp(state.values, vid) : null; runMine.setFace(vid, fc ? { x: fc.F[0], y: fc.F[1], w: fc.fw } : null); } runMine.draw(g.run, performance.now()); cctx.drawImage(runMine.canvas, 0, 0, CW, CW); drawVoicePill(); } else drawRunner(cctx, CW, g.run, performance.now(), false); }
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
     octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
@@ -2224,7 +2240,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t21  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t22  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2271,7 +2287,7 @@
   // ---------- 게임 문구 ----------
   const RULES = {
     laugh: { title: "Crack Up", tiles: [["funny", "Funny filters", "Silly faces pop up every few seconds."], ["awesome", "Stay straight", "Every laugh drains your HP."], ["love", "Win and earn", "The one who laughs less wins."]] },
-    meow: { title: "Squash & Squeak", tiles: [["wow", "High meow = slim", "Squeeze through narrow gaps."], ["moai", "Low meow = squash", "Duck under low gaps."], ["awesome", "10 hurdles", "Clear all 10, or go farthest."]] },
+    meow: { title: "Squash & Squeak", tiles: [["wow", "HIGH “meow~”", "Say it high to get slim and slip through narrow gaps."], ["moai", "LOW “meow~”", "Say it low to get flat and duck under low gaps."], ["awesome", "Clear 10 hurdles", "Wrong sound = bounce back. Farthest wins."]] },
     eat: { title: "Yum or Yuck", tiles: [["wow", "Eat yum", "Open wide for yum: +10."], ["ghost", "Dodge yuck", "Eat yuck: −25."], ["awesome", "Top score wins", "Highest score in 30 sec wins."]] }
   };
   const FILTER_ICONS = ["@lips", "👃", "🎈", "⬇️", "@thought", "⚪"];   // 왕입, 왕코, 풍선 볼, 쭉 턱, 왕이마, 콩알 얼굴
@@ -2312,7 +2328,7 @@
     switch (g.phase) {
       case "searching": { const s = Math.max(1, Math.ceil((g.searchEnd - now) / 1000)); return { screen: "finding", variant: "finding", pill: "Matching…", title: "Finding a player..." }; }
       case "moved": return { screen: "finding", variant: "finding", pill: "Looking for a partner…", toast: PARTNER + " moved on" };
-      case "rules": return { screen: UI.sheet === "none" ? "ready" : "rules", pr: 1, mr: 1, game: g.game, startFrac: Math.min(1, 1 - (g.rulesAt - now) / RULES_MS) };
+      case "rules": return { screen: UI.sheet === "none" ? "ready" : "rules", pr: 1, mr: 1, game: g.game };
       case "countdown": case "play": {
         const el = now - g.playAt;
         return { screen: UI.exit ? "exit" : "game", mascot, cd: g.phase === "countdown", count: Math.max(1, Math.ceil((g.playAt - now) / 1000)), game: g.game, play: g.phase === "play", el };
@@ -2416,9 +2432,10 @@
       const R = RULES[V.game || "laugh"];
       setT("rulesTitle", R.title);
       R.tiles.forEach((t, i) => { setH("tEm" + i, `<img src="${EMO_SRC[t[0]]}" alt="">`); setT("tTt" + i, t[1]); setT("tDs" + i, t[2]); });
-      const f = Math.max(0, Math.min(1, V.startFrac || 0));
+      const f = V.startFrac == null ? 1 : Math.max(0, Math.min(1, V.startFrac || 0));
       $("ringStart").style.setProperty("--p", f * 360 + "deg");
-      setT("startTxt", UI.started ? "Starting…" : "Start");
+      $("ringStart").style.display = UI.dbg ? "" : "none";
+      setT("startTxt", UI.started ? "Waiting for " + PARTNER + "…" : "Start");
       $("startBtn2").classList.toggle("dis", UI.started);
     }
 
@@ -2440,7 +2457,7 @@
       const eat = V.game === "eat" || V.game === "meow", meow = V.game === "meow";
       const goNow = !!V.play && V.el < 800, ctxt = goNow ? "GO!" : String(V.count || 3), ce = $("count");
       if (ce.textContent !== ctxt) { ce.textContent = ctxt; ce.classList.toggle("go", goNow); ce.classList.remove("pop"); void ce.offsetWidth; ce.classList.add("pop"); }
-      setT("gMsg2", V.cd ? (meow ? "Get ready to meow! High = slim, low = squash" : eat ? "Move your face to the emoji, then open and close your mouth" : "Keep a straight face. Staying still for a moment.") : "");
+      setT("gMsg2", V.cd ? (meow ? "Try it! HIGH “meow~” = slim · LOW “meow~” = squash" : eat ? "Move your face to the emoji, then open and close your mouth" : "Keep a straight face. Staying still for a moment.") : "");
       // HP 줄: 웃음 참기는 에너지(HP), 고진감래는 점수. 영상 위에 따로 둔다.
       const hpOf = (mine) => UI.dbg ? (mine ? 0.9 : 0.6) : meow ? Math.min(1, (mine ? (g.run ? g.run.p : 0) : (g.peerScore >= 100 ? RUN_GOAL : (g.peerScore || 0) / 10)) / RUN_GOAL) : eat ? Math.min(1, (mine ? g.score : g.peerScore || 0) / EAT_MAX) : mine ? state.hp : Math.max(0, 1 - (g.peerScore || 0) / HP_MAX);
       const setHp = (id, v) => { const f = $(id); f.style.width = Math.max(0, Math.min(1, v)) * 100 + "%"; f.style.backgroundColor = eat ? "#00f59e" : v > 0.5 ? "#00f59e" : v > 0.25 ? "#ffb020" : "#ed3b4f"; };
@@ -2605,11 +2622,14 @@
         const crateTex = mkTex(128, 128, (c, w, h) => { c.fillStyle = "#c98b55"; c.fillRect(0, 0, w, h); c.strokeStyle = "#7a4a22"; c.lineWidth = 6; c.strokeRect(3, 3, w - 6, h - 6); c.beginPath(); c.moveTo(6, 6); c.lineTo(w - 6, h - 6); c.moveTo(w - 6, 6); c.lineTo(6, h - 6); c.stroke(); c.lineWidth = 3; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(0, (h * k) / 4); c.lineTo(w, (h * k) / 4); c.stroke(); } }, 1, 1);
         const stripeTex = mkTex(128, 64, (c, w, h) => { c.fillStyle = "#f2b630"; c.fillRect(0, 0, w, h); c.fillStyle = "#222"; for (let k = -2; k < 8; k++) { c.beginPath(); c.moveTo(k * 32, h); c.lineTo(k * 32 + 16, h); c.lineTo(k * 32 + 48, 0); c.lineTo(k * 32 + 32, 0); c.fill(); } }, 3, 1);
         const crateM = new THREE.MeshStandardMaterial({ map: crateTex, roughness: 0.8 }), stripeM = new THREE.MeshStandardMaterial({ map: stripeTex, roughness: 0.6 }), steelM = new THREE.MeshStandardMaterial({ color: 0x9a9aa8, roughness: 0.5, metalness: 0.4 });
+        const bubble = (top, sub, col) => mkTex(256, 170, (c, w, h) => { c.fillStyle = "rgba(20,20,28,.9)"; c.beginPath(); c.roundRect(6, 6, w - 12, h - 40, 26); c.fill(); c.beginPath(); c.moveTo(w / 2 - 18, h - 34); c.lineTo(w / 2, h - 6); c.lineTo(w / 2 + 18, h - 34); c.fill(); c.lineWidth = 6; c.strokeStyle = col; c.beginPath(); c.roundRect(6, 6, w - 12, h - 40, 26); c.stroke(); c.textAlign = "center"; c.fillStyle = col; c.font = "900 54px sans-serif"; c.fillText(top, w / 2, 64); c.fillStyle = "#fff"; c.font = "800 30px sans-serif"; c.fillText(sub, w / 2, 108); });
+        const hintTex = { S: bubble("↑ HIGH", "meow~ = slim", "#00f59e"), Q: bubble("↓ LOW", "meow~ = flat", "#ffb020") };
         const obsG = [];
         const mkObstacle = (type) => {
           const g3 = new THREE.Group();
           if (type === "S") { for (const sd of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.86, 1.2, 0.7), crateM); b.position.set(sd * (0.3 + 0.43), 0.6, 0); g3.add(b); } }
           else { for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.24, 2.7, 0.24), steelM); p.position.set(sd * (LW / 2 - 0.05), 1.35, 0); g3.add(p); } const beam = new THREE.Mesh(new THREE.BoxGeometry(LW + 0.1, 0.7, 0.45), stripeM); beam.position.set(0, 1.05 + 0.35, 0); g3.add(beam); }
+          const hint = new THREE.Sprite(new THREE.SpriteMaterial({ map: hintTex[type], depthTest: false, transparent: true })); hint.scale.set(1.5, 1.0, 1); hint.position.set(0, type === "S" ? 2.5 : 3.4, 0); hint.renderOrder = 10; g3.add(hint);
           return g3;
         };
         const goal = new THREE.Mesh(new THREE.PlaneGeometry(LW, 0.7), new THREE.MeshBasicMaterial({ map: mkTex(128, 32, (c, w, h) => { for (let k = 0; k < 16; k++) for (let j = 0; j < 4; j++) { c.fillStyle = (k + j) % 2 ? "#fff" : "#111"; c.fillRect(k * 8, j * 8, 8, 8); } }) })); goal.rotation.x = -Math.PI / 2; goal.position.y = 0.02; world.add(goal);
@@ -2814,7 +2834,7 @@
   on("rBtn", () => { if (!linked() || playing() || g.myReady) return; unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
   on("rX", () => { nextGame(); });
   on("wandReady", () => toast("Filters are off in this demo"));
-  on("startBtn2", () => { UI.started = true; });
+  on("startBtn2", () => { if (UI.started) return; UI.started = true; g.myStart = true; sendMsg({ t: "rstart" }); });
   on("skipBtn2", () => { UI.started = false; nextGame(); });
   on("hudX", () => { if (g.phase === "countdown" || g.phase === "play") UI.exit = true; else if (!UI.dbg) nextGame(); });
   on("hudShield", () => toast("Report and block (demo)"));
