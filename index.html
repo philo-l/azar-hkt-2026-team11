@@ -413,6 +413,10 @@
   #s-finding .conn { position: absolute; left: 0; width: 100%; top: 100px; text-align: center; font: 400 11px/1.3 "Noto Sans"; color: #6f6f6f; }
   /* 홈 화면 앱은 아래 약 59pt를 웹뷰가 안 그려서 검게 남는다. 탭바를 검정으로 맞춰서 탭바가 더 긴 것처럼 이어 보이게 한다. */
   body.standalone #phone .tabbar { background: #000; border-top-color: #161616; }
+  #phone img.gem { width: 16px; height: 16px; object-fit: contain; flex: none; }
+  #phone .emo img { width: 40px; height: 40px; pointer-events: none; }
+  #phone .pop img { width: 56px; height: 56px; }
+  #s-rules .tile .em img { width: 68px; height: 68px; }
 </style>
 </head>
 <body>
@@ -496,7 +500,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Try with Azuzu</button><button class="tbtn gray" id="welLater">Maybe later</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t8</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t8</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -517,9 +521,9 @@
         <div class="mascot" data-av="#00f59e"></div>
         <h2 id="fTitle">Finding a player...</h2>
         <p id="fSub">Matching with someone who wants to play</p>
-        <div class="many"><div class="pill" id="fPill">Azuzu joins in 8s if nobody shows up</div></div>
+        <div class="many"><div class="pill" id="fPill">Looking for a partner…</div></div>
         <div class="conn" id="fConn"></div>
-        <div class="few"><button class="btn" id="fewBtn">Play with Azuzu</button><button class="tbtn" id="fewLink">Keep waiting</button></div>
+        <div class="few"><button class="btn" id="fewBtn">Keep waiting</button><button class="tbtn" id="fewLink"></button></div>
       </div>
 
       <!-- 4. Ready (첫 번째 옵트인) -->
@@ -538,7 +542,7 @@
         <h3>Ready to play?</h3>
         <button class="xbtn" id="rX" aria-label="Leave"><svg class="ico"><use href="#ic-close"/></svg></button>
         <button class="btn rbtn" id="rBtn"><span id="rBtnTxt" style="display:flex;align-items:center;gap:8px"></span></button>
-        <div class="consent">By tapping Ready, you agree to video connection and recording of your screen.</div>
+        <div class="consent">By tapping Ready, you agree to start a video connection with your partner.</div>
       </div>
 
       <!-- 5. 규칙 (두 번째 옵트인) -->
@@ -551,7 +555,7 @@
           <div class="tile" style="left:24px"><div class="em" id="tEm0"></div><b id="tTt0"></b><span id="tDs0"></span></div>
           <div class="tile" style="left:144px"><div class="em" id="tEm1"></div><b id="tTt1"></b><span id="tDs1"></span></div>
           <div class="tile" style="left:264px"><div class="em" id="tEm2"></div><b id="tTt2"></b><span id="tDs2"></span></div>
-          <div class="reward"><svg class="gem" viewBox="0 0 16 16" style="width:20px;height:20px"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg>Win a game, earn +3 Gems</div>
+          <div class="reward"><img class="gem" style="width:20px;height:20px" src="assets/emoji/gem.png" alt="">Win a game, earn +3 Gems</div>
           <button class="btn" id="startBtn2"><i class="ringc" id="ringStart" style="border-radius:50%;background:conic-gradient(#111 var(--p,0deg), rgba(0,0,0,.2) 0);-webkit-mask:radial-gradient(circle 6px,transparent 98%,#000 100%);mask:radial-gradient(circle 6px,transparent 98%,#000 100%)"></i><span id="startTxt">Start</span></button>
           <button class="tbtn" id="skipBtn2">Skip</button>
         </div>
@@ -567,7 +571,7 @@
 
       <!-- 7. 게임 후 -->
       <div class="scr" id="s-after">
-        <div class="rchip" id="chipEl"><b id="chipT">You won!</b><span id="chipS"></span><em><svg class="gem" viewBox="0 0 16 16" style="width:22px;height:22px"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg>+3 Gems</em></div>
+        <div class="rchip" id="chipEl"><b id="chipT">You won!</b><span id="chipS"></span><em><img class="gem" style="width:22px;height:22px" src="assets/emoji/gem.png" alt="">+3 Gems</em></div>
         <div class="rbar"><button class="wandb" id="wandAfter" aria-label="Filter"><svg class="ico"><use href="#ic-wand"/></svg></button><span class="sep"></span><div id="emoRow"></div></div>
         <div class="bb"><button class="btn white" id="keepBtn"><span style="display:flex;align-items:center;gap:6px"><svg class="ico"><use href="#ic-video"/></svg>Keep Talking</span><small id="keepPrice"></small></button><button class="btn" id="newBtn">New Match</button></div>
       </div>
@@ -606,7 +610,7 @@
       <div class="scr" id="s-gems">
         <button class="rnd2" id="gemsClose" style="position:absolute;left:6px;top:58px;width:44px;height:44px;display:grid;place-items:center" aria-label="Close"><svg class="ico" style="width:24px;height:24px"><use href="#ic-close"/></svg></button>
         <h2 class="t">Gems</h2>
-        <div class="bal"><small>Your Gems</small><svg class="gem" viewBox="0 0 16 16"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg><b id="gemTxt3">2,803</b></div>
+        <div class="bal"><small>Your Gems</small><img class="gem"  src="assets/emoji/gem.png" alt=""><b id="gemTxt3">2,803</b></div>
         <div class="rec">Recent</div>
         <div class="grow" style="top:316px"><b>You won · Crack Up</b><span>Today 9:41</span><em class="p">+3</em></div>
         <div class="grow" style="top:388px"><b>Keep Talking</b><span>Today 9:12</span><em>−50</em></div>
@@ -1179,9 +1183,12 @@
     $("chatBtn").textContent = mascot ? "Meet a real person" : "Switch to Video Chat";
   }
 
+  // 반응 이모지는 Figma 라이브러리 이미지를 쓴다. 키 이름으로 주고받는다.
+  const EMO_SRC = { awesome: "assets/emoji/awesome.png", funny: "assets/emoji/funny.png", friendly: "assets/emoji/friendly.png", wow: "assets/emoji/wow.png", rabbit: "assets/emoji/rabbit.png", love: "assets/emoji/love.png", charming: "assets/emoji/charming.png", ghost: "assets/emoji/ghost.png" };
   function floatEmoji(id, e) {
     const el = document.createElement("span");
-    el.className = "pop"; el.textContent = e;
+    el.className = "pop";
+    if (EMO_SRC[e]) el.innerHTML = `<img src="${EMO_SRC[e]}" alt="">`; else el.textContent = e;
     el.style.left = 10 + Math.random() * 70 + "%";
     $(id).appendChild(el);
     setTimeout(() => el.remove(), 1900);
@@ -1304,7 +1311,7 @@
     const em = $("remoteCell").querySelector(".empty"); if (em) em.textContent = "Finding someone new…";
     state.matchMode = "mascot"; g.opp = "searching"; g.mascot = false; g.solo = false;
     setLive(false); setVoice(null); state.voiceFor = null; state.filterStage = -1; state.eatTargets = [];
-    g.phase = "searching"; g.searchEnd = performance.now() + 5000 + Math.random() * 5000; g.note = note || "";
+    g.phase = "searching"; g.searchEnd = performance.now() + 4000; g.note = note || "";
     chip("chipLink", "busy", "Searching");
     ui();
   }
@@ -1405,7 +1412,7 @@
   function gameTick() {
     const now = performance.now();
     if (now - lastUi > 250) { lastUi = now; ui(); }
-    if (g.phase === "searching") { setMsg("Finding someone new…", g.note); if (now >= g.searchEnd) startMascotRound(); return; }
+    if (g.phase === "searching") { setMsg("Finding someone new…", g.note); if (now >= g.searchEnd) { state.matchMode = null; state.dialAt = 0; g.phase = "idle"; g.opp = null; g.note = ""; chip("chipLink", "busy", "상대 기다리는 중"); } return; }
     if (g.phase === "moved") { setMsg("Your partner moved on", ""); if (now >= g.movedEnd) enterSearching(""); return; }
     if (g.phase === "chat") { setMsg("Video chat", g.note || ""); return; }
     if (g.phase === "idle") {
@@ -1944,7 +1951,7 @@
   const FLAG_IT = '<svg width="20" height="14" viewBox="0 0 20 14"><rect width="7" height="14" fill="#009246"/><rect x="7" width="6" height="14" fill="#fff"/><rect x="13" width="7" height="14" fill="#ce2b37"/></svg>';
   const FLAG_KR = '<svg width="20" height="14" viewBox="0 0 20 14"><rect width="20" height="14" fill="#fff"/><circle cx="10" cy="7" r="3.4" fill="#cd2e3a"/><path d="M6.6 7a3.4 3.4 0 0 0 6.8 0z" fill="#0047a0"/></svg>';
   const ico = (id, cls = "") => `<svg class="ico ${cls}"><use href="#${id}"/></svg>`;
-  const GEM = '<svg class="gem" viewBox="0 0 16 16"><path d="M3.5 1.5h9L15.5 6 8 15 .5 6z" fill="#FFB400"/><path d="M3.5 1.5h9L15.5 6h-15z" fill="#FFD84D"/><path d="M5.5 6 8 15 10.5 6z" fill="#FF9500"/></svg>';
+  const GEM = '<img class="gem" src="assets/emoji/gem.png" alt="">';
 
   // ---------- 고정 골격 만들기 ----------
   $("sbIcons").innerHTML = '<svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#fff"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#fff"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#fff"/></svg><svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 2.4c2.4 0 4.6 1 6.2 2.6l1.1-1.1C13.9 2 11.3.8 8.5.8S3.1 2 1.2 3.9l1.1 1.1C3.9 3.4 6.1 2.4 8.5 2.4zm0 3.3c1.5 0 2.8.6 3.8 1.6l1.1-1.1A7.6 7.6 0 0 0 8.5 4.1c-2 0-3.9.8-5.3 2.1l1.1 1.1c1-1 2.3-1.6 3.8-1.6zm0 3.2c-.7 0-1.3.3-1.8.7L8.5 11l1.8-1.4c-.5-.4-1.1-.7-1.8-.7z" fill="#fff"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.5" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2z" fill="#fff" opacity=".5"/></svg>';
@@ -1956,14 +1963,14 @@
   $("gemSlot2").innerHTML = GEM + '<span id="gemTxt2"></span>';
   $("bellI").innerHTML = ico("ic-bell") + "<i>23</i>";
   document.querySelectorAll("[data-flag]").forEach((el) => { el.insertAdjacentHTML("afterbegin", el.dataset.flag === "it" ? FLAG_IT : FLAG_KR); });
-  const EMOJIS = ["👍", "🤩", "🙌", "😮", "🐰", "💗"];
-  $("emoRow").innerHTML = EMOJIS.map((e, i) => `<button class="emo" data-e="${e}" style="left:${84 + i * 56}px">${e}</button>`).join("");
-  $("emoRow2").innerHTML = EMOJIS.slice(0, 3).map((e, i) => `<button class="emo" data-e="${e}" style="left:${224 + i * 52}px">${e}</button>`).join("");
+  const EMOJIS = ["awesome", "funny", "friendly", "wow", "rabbit", "love"];   // Figma 라이브러리 반응 이모지(PNG)
+  $("emoRow").innerHTML = EMOJIS.map((e, i) => `<button class="emo" data-e="${e}" style="left:${84 + i * 56}px"><img src="${EMO_SRC[e]}" alt="${e}"></button>`).join("");
+  $("emoRow2").innerHTML = EMOJIS.slice(0, 3).map((e, i) => `<button class="emo" data-e="${e}" style="left:${224 + i * 52}px"><img src="${EMO_SRC[e]}" alt="${e}"></button>`).join("");
 
   // ---------- 게임 문구 ----------
   const RULES = {
-    laugh: { title: "Crack Up", tiles: [["😂", "Funny filters", "Silly faces pop up every few seconds."], ["😐", "Stay straight", "Every laugh drains your HP."], ["🏆", "Win and earn", "The one who laughs less wins."]] },
-    eat: { title: "Yum or Yuck", tiles: [["🍩", "Eat yum", "Open wide for yum: +10."], ["💀", "Dodge yuck", "Eat yuck: −25."], ["🏆", "Top score wins", "Highest score in 30 sec wins."]] }
+    laugh: { title: "Crack Up", tiles: [["funny", "Funny filters", "Silly faces pop up every few seconds."], ["awesome", "Stay straight", "Every laugh drains your HP."], ["love", "Win and earn", "The one who laughs less wins."]] },
+    eat: { title: "Yum or Yuck", tiles: [["wow", "Eat yum", "Open wide for yum: +10."], ["ghost", "Dodge yuck", "Eat yuck: −25."], ["awesome", "Top score wins", "Highest score in 30 sec wins."]] }
   };
   const RESULTS = {
     win: ["You won!", (e) => e ? "You ate more" : "You laughed less", true],
@@ -2000,8 +2007,8 @@
       return { screen: "camera", off: UI.camDenied };
     }
     switch (g.phase) {
-      case "searching": { const s = Math.max(1, Math.ceil((g.searchEnd - now) / 1000)); return { screen: "finding", variant: "finding", pill: `Azuzu joins in ${s}s`, title: "Finding a player..." }; }
-      case "moved": return { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", toast: PARTNER + " moved on" };
+      case "searching": { const s = Math.max(1, Math.ceil((g.searchEnd - now) / 1000)); return { screen: "finding", variant: "finding", pill: "Matching…", title: "Finding a player..." }; }
+      case "moved": return { screen: "finding", variant: "finding", pill: "Looking for a partner…", toast: PARTNER + " moved on" };
       case "rules": return { screen: UI.sheet === "none" ? "ready" : "rules", pr: 1, mr: 1, game: g.game, startFrac: Math.min(1, 1 - (g.rulesAt - now) / RULES_MS) };
       case "countdown": case "play": {
         const el = now - g.playAt;
@@ -2015,7 +2022,7 @@
       case "idle":
         if (!linked()) {
           if (g.note) return { screen: "finding", variant: "left" };
-          return { screen: "finding", variant: UI.few ? "few" : "finding", pill: "Azuzu can join if nobody shows up", title: UI.few ? "Few players right now" : "Finding a player..." };
+          return { screen: "finding", variant: UI.few ? "few" : "finding", pill: "Looking for a partner…", title: UI.few ? "Few players right now" : "Finding a player..." };
         }
         return { screen: "ready", pr: g.peerReady ? 1 : 0, mr: g.myReady ? 1 : 0 };
     }
@@ -2025,18 +2032,17 @@
   // 디버그 패널에서 고르는 미리보기 화면
   const PRESETS = {
     welcome: { screen: "welcome" }, camera: { screen: "camera" }, "camera off": { screen: "camera", off: true },
-    finding: { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", title: "Finding a player..." },
+    finding: { screen: "finding", variant: "finding", pill: "Looking for a partner…", title: "Finding a player..." },
     "few players": { screen: "finding", variant: "few", title: "Few players right now" },
-    "partner moved on": { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", toast: PARTNER + " moved on" },
-    "partner skipped": { screen: "finding", variant: "finding", pill: "Azuzu joins in 8s if nobody shows up", toast: PARTNER + " skipped" },
+    "partner moved on": { screen: "finding", variant: "finding", pill: "Looking for a partner…", toast: PARTNER + " moved on" },
+    "partner skipped": { screen: "finding", variant: "finding", pill: "Looking for a partner…", toast: PARTNER + " skipped" },
     "partner left": { screen: "finding", variant: "left" },
     "ready: partner deciding": { screen: "ready", pr: 0, mr: 0 }, "ready: partner ready": { screen: "ready", pr: 1, mr: 0 },
     "ready: I am ready": { screen: "ready", pr: 0, mr: 1 }, "ready: both": { screen: "ready", pr: 1, mr: 1 },
     "rules: Crack Up": { screen: "rules", pr: 1, mr: 1, game: "laugh", startFrac: 0.4 }, "rules: Yum or Yuck": { screen: "rules", pr: 1, mr: 1, game: "eat", startFrac: 0.4 },
-    "game: countdown": { screen: "game", cd: true, count: 3, game: "laugh" }, "game: Crack Up": { screen: "game", play: true, game: "laugh", el: 12000 }, "game: Yum or Yuck": { screen: "game", play: true, game: "eat", el: 9000 },
-    "game: vs Azuzu": { screen: "game", mascot: true, cd: true, count: 3, game: "laugh" }, "game: exit confirm": { screen: "exit", play: true, game: "laugh", el: 9000 },
+    "game: countdown": { screen: "game", cd: true, count: 3, game: "laugh" }, "game: Crack Up": { screen: "game", play: true, game: "laugh", el: 12000 }, "game: Yum or Yuck": { screen: "game", play: true, game: "eat", el: 9000 }, "game: exit confirm": { screen: "exit", play: true, game: "laugh", el: 9000 },
     "after: win": { screen: "after", result: "win", win: true, game: "laugh" }, "after: lose": { screen: "after", result: "lose", game: "laugh" }, "after: draw": { screen: "after", result: "draw", game: "laugh" },
-    "after: win (Yum or Yuck)": { screen: "after", result: "win", win: true, game: "eat" }, "after: vs Azuzu": { screen: "after", mascot: true, result: "win", win: true, game: "laugh" },
+    "after: win (Yum or Yuck)": { screen: "after", result: "win", win: true, game: "eat" },
     "keep talking: pay": { screen: "pay", sheetKind: "pay", result: "win", win: true, game: "laugh" }, "keep talking: not enough Gems": { screen: "pay", sheetKind: "nogems", result: "win", win: true, game: "laugh" },
     "video chat": { screen: "chat" }, "gems history": { screen: "gems" }
   };
@@ -2074,15 +2080,14 @@
     if (V.screen === "finding") {
       const v = V.variant || "finding";
       setT("fTitle", V.title || (v === "left" ? "Partner left" : "Finding a player..."));
-      setT("fSub", v === "left" ? "Your partner closed the room" : v === "few" ? "Play with Azuzu while you wait?" : "Matching with someone who wants to play");
-      setT("fPill", V.pill || "Azuzu joins in 8s if nobody shows up");
+      setT("fSub", v === "left" ? "Your partner closed the room" : v === "few" ? "We connect you when someone is ready" : "Matching with someone who wants to play");
+      setT("fPill", V.pill || "Looking for a partner…");
       const cp = $("chipPeer").querySelector("span").textContent, cl = $("chipLink").querySelector("span").textContent;
       const last = (logEl.textContent.trim().split("\n").pop() || "").replace(/^\[[^\]]*\]\s*/, "").slice(0, 90);
       setT("fConn", `Seat: ${cp} · Link: ${cl}` + (last ? "\n" + last : ""));
       $("fConn").style.whiteSpace = "pre-line";
-      setT("fewBtn", v === "left" ? "New Match" : "Play with Azuzu");
-      setT("fewLink", v === "left" ? "" : "Keep waiting");
-      $("fewLink").style.display = v === "left" ? "none" : "flex";
+      setT("fewBtn", v === "left" ? "New Match" : "Keep waiting");
+      $("fewLink").style.display = "none";
     }
 
     // Ready
@@ -2097,7 +2102,7 @@
     if (V.screen === "rules") {
       const R = RULES[V.game || "laugh"];
       setT("rulesTitle", R.title);
-      R.tiles.forEach((t, i) => { setT("tEm" + i, t[0]); setT("tTt" + i, t[1]); setT("tDs" + i, t[2]); });
+      R.tiles.forEach((t, i) => { setH("tEm" + i, `<img src="${EMO_SRC[t[0]]}" alt="">`); setT("tTt" + i, t[1]); setT("tDs" + i, t[2]); });
       const f = Math.max(0, Math.min(1, V.startFrac || 0));
       $("ringStart").style.setProperty("--p", f * 360 + "deg");
       setT("startTxt", UI.started ? "Starting…" : "Start");
@@ -2176,21 +2181,18 @@
 
   // ---------- 조작 ----------
   const on = (id, fn) => $(id).addEventListener("click", fn);
-  on("welTry", () => { UI.welcomed = true; UI.preferAzuzu = true; });
-  on("welLater", () => { UI.welcomed = true; });
+  on("welTry", () => { UI.welcomed = true; });
   on("camAllow", async () => {
     UI.camDenied = false;
     await startCamera();
     if (!state.stream) { UI.camDenied = true; return; }
     try { localStorage.setItem("azar.cam", "1"); } catch (e) {}
-    if (UI.preferAzuzu) { UI.preferAzuzu = false; enterSearching(""); }
   });
   on("camLater", () => { UI.camDenied = false; toast("Camera is needed to play"); });
   on("fewBtn", () => {
-    if (g.note) { g.note = ""; }
-    enterSearching("");
+    if (g.note) { g.note = ""; UI.few = false; UI.waitSince = 0; enterSearching(""); }   // 상대가 나간 뒤 New Match
+    else { UI.few = false; UI.waitSince = performance.now(); }                          // 계속 기다리기
   });
-  on("fewLink", () => { UI.few = false; UI.waitSince = performance.now(); });
   on("rBtn", () => { if (!linked() || playing() || g.myReady) return; unlockAudio(); g.myReady = true; sendMsg({ t: "ready" }); ui(); checkStart(); });
   on("rX", () => { nextGame(); });
   on("wandReady", () => toast("Filters are off in this demo"));
