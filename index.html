@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Azar Play</title>
 <meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Azar Play">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -394,6 +400,16 @@
 
   #phone[data-chipwin="1"] #remoteCell .who { bottom: 64px; }
   #s-chat .bar .sep { position: absolute; left: 212px; top: 25px; width: 2px; height: 18px; background: #444; }
+
+  /* 화면이 393x852보다 길면(--dy) 아래쪽 묶음은 아래로 붙이고 가운데 장식은 반만 내린다 */
+  #phone .tabbar, #phone #s-ready h3, #phone #s-ready .xbtn, #phone #s-ready .rbtn, #phone #s-ready .consent,
+  #phone #s-finding h2, #phone #s-finding p, #phone #s-finding .pill, #phone #s-finding .few,
+  #phone #s-after .rbar, #phone #s-after .bb, #phone #s-game .gmsg2, #phone #s-game .gsub2, #phone #s-game .bars,
+  #phone #s-chat .dimb, #phone #s-chat .bar, #phone #s-chat .nm, #phone #s-chat .nm2, #phone #s-chat .follow { translate: 0 var(--dy, 0px); }
+  #phone #s-finding .ring, #phone #s-finding .mascot, #phone #s-finding .arrow { translate: 0 calc(var(--dy, 0px) / 2); }
+  #phone[data-lay="chat"] #remoteCell { height: calc(752px + var(--dy, 0px)); }
+  #phone .tabbar { height: calc(77px + var(--dy, 0px)); }
+  #s-finding .conn { position: absolute; left: 0; width: 100%; top: 100px; text-align: center; font: 400 11px/1.3 "Noto Sans"; color: #6f6f6f; }
 </style>
 </head>
 <body>
@@ -493,6 +509,7 @@
         <h2 id="fTitle">Finding a player...</h2>
         <p id="fSub">Matching with someone who wants to play</p>
         <div class="many"><div class="pill" id="fPill">Azuzu joins in 8s if nobody shows up</div></div>
+        <div class="conn" id="fConn"></div>
         <div class="few"><button class="btn" id="fewBtn">Play with Azuzu</button><button class="tbtn" id="fewLink">Keep waiting</button></div>
       </div>
 
@@ -1032,7 +1049,7 @@
     if (slotIndex !== 1) return;
     dialTimer = setInterval(() => {
       if (state.matchMode === "mascot") return;
-      if (!state.stream || !state.peer || !state.myId) return;
+      if (!state.peer || !state.myId) return;
       if (state.data && state.data.open) return;
       if (Date.now() - (state.dialAt || 0) < 6000) return;
       state.dialAt = Date.now();
@@ -1865,13 +1882,20 @@
     const desk = forceDesk || (!forceMobile && !coarse && innerWidth >= 820);
     appEl.classList.toggle("desk", desk);
     const wrap = $("phoneWrap");
-    let s, w, h;
-    if (desk) { s = Math.min(1.15, (innerHeight - 40 - 20) / 852, (innerWidth - 40 - 20 - 560) / 393); s = Math.max(0.4, s); w = 393 * s + 20; h = 852 * s + 20; }
-    else { s = Math.min(innerWidth / 393, innerHeight / 852); w = 393 * s; h = 852 * s; }
+    const vh = (window.visualViewport && window.visualViewport.height) || innerHeight;
+    let s, w, h, ph = 852;
+    if (desk) { s = Math.min(1.15, (vh - 40 - 20) / 852, (innerWidth - 40 - 20 - 560) / 393); s = Math.max(0.4, s); w = 393 * s + 20; h = 852 * s + 20; }
+    else {
+      // 폰: 가로를 꽉 채우고, 화면이 더 길면 세로로 늘려서 아래쪽 묶음을 아래에 붙인다. 화면이 짧으면(브라우저 바가 있을 때) 비율을 유지하고 양옆을 남긴다.
+      const sw = innerWidth / 393, H = vh / sw;
+      if (H >= 852) { s = sw; ph = H; } else { s = Math.min(sw, vh / 852); }
+      w = 393 * s; h = ph * s;
+    }
     wrap.style.width = w + "px"; wrap.style.height = h + "px";
+    phone.style.height = ph + "px"; phone.style.setProperty("--dy", (ph - 852) + "px");
     phone.style.transform = `scale(${s})`;
   }
-  addEventListener("resize", fit); fit();
+  addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
   if (/[?&]debug/.test(location.search)) document.body.classList.add("showdebug");
 
   // ---------- 조각 만들기 ----------
@@ -2015,6 +2039,8 @@
       setT("fTitle", V.title || (v === "left" ? "Partner left" : "Finding a player..."));
       setT("fSub", v === "left" ? "Your partner closed the room" : v === "few" ? "Play with Azuzu while you wait?" : "Matching with someone who wants to play");
       setT("fPill", V.pill || "Azuzu joins in 8s if nobody shows up");
+      const cp = $("chipPeer").querySelector("span").textContent, cl = $("chipLink").querySelector("span").textContent;
+      setT("fConn", `Seat: ${cp} · Link: ${cl}`);
       setT("fewBtn", v === "left" ? "New Match" : "Play with Azuzu");
       setT("fewLink", v === "left" ? "" : "Keep waiting");
       $("fewLink").style.display = v === "left" ? "none" : "flex";
