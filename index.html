@@ -417,6 +417,69 @@
   #phone .emo img { width: 40px; height: 40px; pointer-events: none; }
   #phone .pop img { width: 56px; height: 56px; }
   #s-rules .tile .em img { width: 68px; height: 68px; }
+
+  /* ===== 마이크로 인터랙션 ===== */
+  @keyframes scrIn { from { opacity: 0; } to { opacity: 1; } }
+  #phone .scr.on { animation: scrIn .28s ease-out; }
+  @keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes dimIn { from { opacity: 0; } to { opacity: 1; } }
+  #phone #s-rules.on .sheet, #phone #s-sheet.on .sh { animation: sheetUp .34s cubic-bezier(.2,.9,.25,1); }
+  #phone #s-rules.on .dim, #phone #s-sheet.on .dim, #phone #s-exit.on .dim { animation: dimIn .3s; }
+  #phone #s-exit.on .dlg { animation: popIn .35s; }
+  #phone .btn, #phone .tbtn, #phone .xbtn, #phone .rnd2, #phone .wand, #phone .wandb, #phone .emo, #phone .rb, #phone .gemchip, #phone .cx, #phone .cs { transition: transform .12s ease; }
+  #phone .btn:active, #phone .tbtn:active, #phone .xbtn:active, #phone .rnd2:active, #phone .wand:active, #phone .wandb:active, #phone .rb:active, #phone .gemchip:active, #phone .cx:active, #phone .cs:active { transform: scale(.94); }
+  #phone .emo:active img { transform: scale(1.35); }
+  #phone .emo img { transition: transform .12s ease; }
+  /* Ready 글로우, 배지 팝 */
+  @keyframes glowPulse { 0%, 100% { box-shadow: 0 0 22px 2px rgba(0,245,158,.45), inset 0 0 36px rgba(0,245,158,.3); } 50% { box-shadow: 0 0 40px 8px rgba(0,245,158,.8), inset 0 0 56px rgba(0,245,158,.5); } }
+  @keyframes glowIn { from { opacity: 0; scale: .9; } to { opacity: 1; scale: 1; } }
+  #phone[data-pr="1"] #s-ready .glow, #phone[data-mr="1"] #s-ready .glowme { animation: glowIn .45s ease-out, glowPulse 1.8s .45s ease-in-out infinite; }
+  @keyframes popIn { 0% { scale: .4; opacity: 0; } 60% { scale: 1.15; opacity: 1; } 100% { scale: 1; } }
+  #phone #s-ready .badge.ok, #phone[data-mr="1"] #s-ready .myready { animation: popIn .4s; }
+  @keyframes cardIn { from { translate: 0 -34px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+  @keyframes camIn { from { translate: 0 34px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+  #phone #s-ready.on .pcard { animation: cardIn .5s ease-out; }
+  #phone[data-lay="ready"] #localCell { animation: camIn .5s .1s ease-out both; }
+  /* 카운트다운 */
+  @keyframes cdPop { 0% { scale: 2; opacity: 0; } 25% { scale: 1; opacity: 1; } 80% { scale: .92; opacity: 1; } 100% { scale: .8; opacity: 0; } }
+  #phone #s-game .count.pop { animation: cdPop .95s ease-out both; }
+  #phone #s-game .count.go { color: #00f59e; }
+  /* 결과 칩: 떠 있다가 사라진다 */
+  @keyframes chipLife { 0% { opacity: 0; scale: .5; } 8% { opacity: 1; scale: 1.14; } 14% { scale: 1; } 80% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .94; } }
+  #phone #s-after .rchip { opacity: 0; }
+  #phone #s-after .rchip.life { animation: chipLife 4s ease-out forwards; }
+  #phone .flygem { position: absolute; left: 0; top: 0; width: 24px; height: 24px; z-index: 60; pointer-events: none; will-change: transform; }
+  @keyframes gemPulse { 0% { scale: 1; } 40% { scale: 1.22; } 100% { scale: 1; } }
+  #phone .gemchip.pulse { animation: gemPulse .4s ease-out; box-shadow: 0 0 14px rgba(0,245,158,.65); }
+  /* 방 타이머: 15초부터 붉게 맥박, 5초부터 흔들림과 붉은 테두리 */
+  @keyframes warnPulse { 0%, 100% { scale: 1; } 50% { scale: 1.1; } }
+  @keyframes critShake { 0%, 100% { translate: 0 0; scale: 1.2; } 20% { translate: -4px 1px; } 40% { translate: 4px -1px; } 60% { translate: -3px 0; } 80% { translate: 3px 1px; } }
+  @keyframes blink { 50% { opacity: .2; } }
+  @keyframes vig { from { opacity: .3; } to { opacity: 1; } }
+  #phone .hud.warn .timer { animation: warnPulse 1s ease-in-out infinite; }
+  #phone .hud.crit .timer { animation: critShake .32s linear infinite; text-shadow: 0 0 14px rgba(237,59,79,.85); }
+  #phone .hud.crit .timer small { animation: blink .5s step-end infinite; }
+  #phone[data-crit="1"]::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 45; box-shadow: inset 0 0 70px 6px rgba(237,59,79,.55); animation: vig .6s ease-in-out infinite alternate; }
+  /* Finding: 화살표가 지구본처럼 돌고 링이 퍼진다 */
+  @keyframes spinArrow { to { transform: rotate(360deg); } }
+  @keyframes ringPulse { 0%, 100% { scale: 1; } 50% { scale: 1.07; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  #phone #s-finding .arrow { transform-origin: 257px 340px; animation: spinArrow 12s linear infinite; }
+  #phone #s-finding .ring { animation: ringPulse 2.6s ease-in-out infinite; }
+  #phone #s-finding .ring:nth-of-type(2) { animation-delay: .35s; }
+  #phone #s-finding .ring:nth-of-type(3) { animation-delay: .7s; }
+  #phone #s-finding .mascot { animation: bob 2.2s ease-in-out infinite; }
+  /* 리액션, 토스트, 비디오챗 전환, 탭 */
+  @keyframes floatUp { 0% { transform: translateY(0) scale(.5) rotate(0); opacity: 0; } 12% { opacity: 1; transform: translateY(-30px) scale(1.15) rotate(-6deg); } 60% { transform: translateY(-130px) scale(1) rotate(8deg); opacity: 1; } 100% { transform: translateY(-230px) scale(.9) rotate(-4deg); opacity: 0; } }
+  #phone .pop { animation: floatUp 2s ease-out forwards; }
+  @keyframes toastIn { from { translate: 0 -26px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+  #phone .toast.on { animation: toastIn .3s ease-out; }
+  @keyframes zoomIn { from { scale: 1.12; opacity: .4; } to { scale: 1; opacity: 1; } }
+  @keyframes pipIn { from { scale: .4; opacity: 0; } 60% { scale: 1.08; opacity: 1; } to { scale: 1; } }
+  #phone[data-screen="chat"] #remoteCell { animation: zoomIn .55s ease-out; }
+  #phone[data-screen="chat"] #localCell { animation: pipIn .6s .15s ease-out both; }
+  @keyframes tabBounce { 0% { scale: 1; } 40% { scale: 1.3; } 70% { scale: .92; } 100% { scale: 1; } }
+  #phone .tabbar .tab.sel svg { animation: tabBounce .6s .2s; }
 </style>
 </head>
 <body>
@@ -1267,9 +1330,13 @@
   }
   const RESULT = { ko_lose: "에너지가 다 닳았어요! 졌어요!", ko_win: "이겼어요! 상대 에너지가 바닥났어요", win: "이겼어요! 덜 웃었어요", lose: "졌어요! 더 많이 웃었어요", draw: "무승부", survive: "끝까지 해냈어요!", nopeer: "상대 결과를 받지 못했어요" };
   const RESULT_EAT = { win: "이겼어요! 더 많이 먹었어요", lose: "졌어요! 먹은 게 적어요", draw: "무승부", survive: "끝! 혼자서도 해냈어요", nopeer: "상대 결과를 받지 못했어요" };
+  // 게임이 끝나면 금, 흔들림, 붉은 번쩍임 같은 데미지 효과를 지운다(결과 화면과 비디오챗으로 끌고 가지 않는다).
+  function clearFx() { Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0; }
+
   function finish(r) {
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
     g.phase = "reaction"; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
+    clearFx();
     g.result = r; g.won = r === "win" || r === "ko_win";
     if (g.won && !g.rewarded && !(g.solo && !g.mascot)) { g.rewarded = true; addGems(3); }   // 이기면 3젬
     g.resultMsg = (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
@@ -1294,6 +1361,7 @@
   // ---------- 비디오챗, Next Game, 아주주 ----------
   function enterChat(note) {
     clearTimeout(g.finalTimer); clearTimeout(g.koTimer);
+    clearFx();
     g.phase = "chat"; g.note = note; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
     setLive(true);
     ui();
@@ -1309,6 +1377,7 @@
     state.data = null; state.call = null;
     $("remoteCell").classList.remove("has-stream", "mascot");
     const em = $("remoteCell").querySelector(".empty"); if (em) em.textContent = "Finding someone new…";
+    clearFx();
     state.matchMode = "mascot"; g.opp = "searching"; g.mascot = false; g.solo = false;
     setLive(false); setVoice(null); state.voiceFor = null; state.filterStage = -1; state.eatTargets = [];
     g.phase = "searching"; g.searchEnd = performance.now() + 4000; g.note = note || "";
@@ -1891,6 +1960,7 @@
     photo: null, camDenied: false, started: false, lastScreen: "", avKey: "",
     gems: Number(localStorage.getItem("azar.gems")) || 2800
   };
+  UI.gemShown = UI.gems; UI.celebrating = false; UI.afterAt = 0; UI.afterKey = "";
   const PARTNER = "user0424";
   const KEEP_COST = 50, WIN_GEMS = 3;
   const phone = $("phone"), appEl = $("app");
@@ -1956,8 +2026,8 @@
   // ---------- 고정 골격 만들기 ----------
   $("sbIcons").innerHTML = '<svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#fff"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#fff"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#fff"/></svg><svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 2.4c2.4 0 4.6 1 6.2 2.6l1.1-1.1C13.9 2 11.3.8 8.5.8S3.1 2 1.2 3.9l1.1 1.1C3.9 3.4 6.1 2.4 8.5 2.4zm0 3.3c1.5 0 2.8.6 3.8 1.6l1.1-1.1A7.6 7.6 0 0 0 8.5 4.1c-2 0-3.9.8-5.3 2.1l1.1 1.1c1-1 2.3-1.6 3.8-1.6zm0 3.2c-.7 0-1.3.3-1.8.7L8.5 11l1.8-1.4c-.5-.4-1.1-.7-1.8-.7z" fill="#fff"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.5" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2z" fill="#fff" opacity=".5"/></svg>';
   $("tabbar").innerHTML = [
-    ["vc", "ic-discover", "Video Chat"], ["play", null, "Play"], ["lounge", "ic-lounge", "Lounge"], ["history", "ic-history", "History"], ["message", "ic-message", "Message"]
-  ].map((t, i) => `<div class="tab ${t[0] === "play" ? "sel" : ""} ${t[0] === "vc" ? "vc" : ""}" style="left:${i * 78.6}px">${t[1] ? ico(t[1]) : '<svg viewBox="0 0 26 26" style="fill:none"><g style="--azc:#fff">' + '<use href="#azoo" x="0" y="0" width="26" height="26"/></g></svg>'}${t[2]}</div>`).join("") + '<span class="online">Online</span>';
+    ["vc", "ic-discover", "Discover"], ["play", null, "Play"], ["lounge", "ic-lounge", "Lounge"], ["history", "ic-history", "History"], ["message", "ic-message", "Message"]
+  ].map((t, i) => `<div class="tab ${t[0] === "play" ? "sel" : ""} ${t[0] === "vc" ? "vc" : ""}" style="left:${i * 78.6}px">${t[1] ? ico(t[1]) : '<svg viewBox="0 0 26 26" style="fill:none"><g style="--azc:#fff">' + '<use href="#azoo" x="0" y="0" width="26" height="26"/></g></svg>'}${t[2]}</div>`).join("");
   document.querySelectorAll("[data-av]").forEach((el) => { const [c, a] = el.dataset.av.split(","); el.innerHTML = avatar(c, a || ""); });
   $("gemSlot1").innerHTML = GEM + '<span id="gemTxt1"></span>';
   $("gemSlot2").innerHTML = GEM + '<span id="gemTxt2"></span>';
@@ -2058,9 +2128,17 @@
     const d = phone.dataset;
     const set = (k, v) => { v = String(v); if (d[k] !== v) d[k] = v; };
     set("screen", V.screen); set("lay", S.lay || ""); set("top", S.top ? 1 : 0); set("tab", S.tab ? 1 : 0); set("hud", S.hud ? 1 : 0);
-    set("chipwin", (V.screen === "after" || V.screen === "pay") && V.win ? 1 : 0); set("pr", V.pr ? 1 : 0); set("mr", V.mr ? 1 : 0); set("cd", V.cd ? 1 : 0); set("few", V.variant === "few" || V.variant === "left" ? 1 : 0);
+    const inAfter = V.screen === "after" || V.screen === "pay";
+    const akey = inAfter ? (V.result || "") + (V.win ? "w" : "") : "";
+    if (akey !== UI.afterKey) {
+      UI.afterKey = akey; UI.afterAt = akey ? now : 0;
+      const ch = $("chipEl"); ch.classList.remove("life"); if (akey) { void ch.offsetWidth; ch.classList.add("life"); }   // 결과 칩은 떠 있다가 사라진다
+      if (akey && V.win) celebrate();
+    }
+    set("chipwin", inAfter && V.win && UI.afterAt && now - UI.afterAt < 3800 ? 1 : 0); set("pr", V.pr ? 1 : 0); set("mr", V.mr ? 1 : 0); set("cd", (V.cd || (V.play && V.el < 800)) ? 1 : 0); set("few", V.variant === "few" || V.variant === "left" ? 1 : 0);
     document.querySelectorAll("#phone .scr").forEach((el) => el.classList.toggle("on", S.on.includes(el.id)));
-    const gemsTxt = UI.gems.toLocaleString("en-US");
+    if (!UI.celebrating) UI.gemShown = UI.gems;
+    const gemsTxt = UI.gemShown.toLocaleString("en-US");
     setT("gemTxt1", gemsTxt); setT("gemTxt2", gemsTxt); setT("gemTxt3", gemsTxt);
 
     // 토스트
@@ -2110,6 +2188,7 @@
     }
 
     // 게임, 결과, 타이머
+    let critNow = false;
     if (S.hud) {
       let room, label;
       if (V.screen === "after" || V.screen === "pay") { room = UI.dbg ? 24000 : g.roomEnd - now; label = "Room closes"; }
@@ -2118,12 +2197,14 @@
       setT("hudTime", mmss(room)); setT("hudLabel", label);
       const sec = Math.ceil(room / 1000), hud = $("hud");
       hud.classList.toggle("warn", sec <= 15 && sec > 5 && label === "Room closes"); hud.classList.toggle("crit", sec <= 5 && label === "Room closes");
+      critNow = sec <= 5 && label === "Room closes";
       if (sec <= 5 && label === "Room closes") setT("hudLabel", "Closing now!");
       else if (sec <= 15 && label === "Room closes") setT("hudLabel", "Room closing");
     }
     if (V.screen === "game" || V.screen === "exit") {
       const eat = V.game === "eat";
-      setT("count", String(V.count || 3));
+      const goNow = !!V.play && V.el < 800, ctxt = goNow ? "GO!" : String(V.count || 3), ce = $("count");
+      if (ce.textContent !== ctxt) { ce.textContent = ctxt; ce.classList.toggle("go", goNow); ce.classList.remove("pop"); void ce.offsetWidth; ce.classList.add("pop"); }
       setT("gMsg2", V.cd ? (V.mascot ? "Azuzu joined!" : (eat ? "Open wide for yum" : "Keep a straight face")) : (eat ? "Open and close to eat!" : "Keep a straight face"));
       const mine = Math.round(g.score || 0), theirs = Math.round(g.peerScore || 0), left = Math.max(0, Math.ceil((GAME_MS - (V.el || 0)) / 1000));
       setT("gSub2", V.cd ? (eat ? "Move your face to the emoji, then open and close your mouth." : "Stay still for a moment (baseline).") : `${eat ? "My score" : "My laugh score"} ${mine}` + (g.solo && !g.mascot ? "" : ` · Them ${theirs}`) + ` · ${left}s left`);
@@ -2152,7 +2233,32 @@
       setT("permB", off ? "Off in browser settings" : "Voice effects in some games");
       setT("camAllow", off ? "Try again" : "Allow");
     }
+    set("crit", critNow ? 1 : 0);
     setT("gemTxt3", gemsTxt);
+  }
+
+  // ---------- 승리 연출: 젬이 위 젬 칩으로 날아가고 숫자가 올라간다 ----------
+  function pulseGem() {
+    document.querySelectorAll("#phone .gemchip").forEach((el) => { el.classList.remove("pulse"); void el.offsetWidth; el.classList.add("pulse"); });
+  }
+  function celebrate() {
+    UI.celebrating = true; UI.gemShown = Math.max(0, UI.gems - 3);
+    setTimeout(() => {
+      const chip = $("chipEl"), target = document.querySelector("#phone .hud .gemchip");
+      if (!chip || !target) { UI.celebrating = false; return; }
+      const pr = phone.getBoundingClientRect(), sc = pr.width / 393, c = chip.getBoundingClientRect(), t = target.getBoundingClientRect();
+      const x0 = (c.left + c.width / 2 - pr.left) / sc, y0 = (c.top + c.height / 2 - pr.top) / sc + 16, x1 = (t.left + 16 - pr.left) / sc, y1 = (t.top + t.height / 2 - pr.top) / sc;
+      let done = 0;
+      for (let i = 0; i < 3; i++) {
+        const im = document.createElement("img"); im.src = "assets/emoji/gem.png"; im.className = "flygem"; phone.appendChild(im);
+        const a = im.animate([
+          { transform: `translate(${x0 - 12}px,${y0 - 12}px) scale(.5)`, opacity: 0 },
+          { transform: `translate(${x0 - 12 + (i - 1) * 26}px,${y0 - 40}px) scale(1.35)`, opacity: 1, offset: 0.25 },
+          { transform: `translate(${x1 - 12}px,${y1 - 12}px) scale(.7)`, opacity: 1 }
+        ], { duration: 850, delay: i * 160, easing: "cubic-bezier(.45,0,.7,.3)", fill: "both" });
+        a.onfinish = () => { im.remove(); UI.gemShown = Math.min(UI.gems, UI.gemShown + 1); pulseGem(); if (++done >= 3) { UI.gemShown = UI.gems; UI.celebrating = false; } };
+      }
+    }, 700);
   }
 
   // ---------- 사진(내 프로필) ----------
