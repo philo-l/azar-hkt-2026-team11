@@ -600,7 +600,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t22</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t23</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -1351,7 +1351,7 @@
     Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0;
     UI.started = false;
     if (g.phase === "countdown") startBaseline();
-    setLive(true);
+    setLive(!withRules);   // 규칙 시트 동안은 서로 목소리/영상이 연결되지 않는다. 둘 다 Start를 누른 뒤 카운트다운부터 켠다
     log(solo ? "혼자 해보기 시작" : "게임 시작");
     ui();
   }
@@ -1716,7 +1716,7 @@
     if (g.phase === "rules") {
       setMsg("Check the rules", g.myStart && !g.peerStart && !g.solo ? "상대가 Start를 누르길 기다리는 중" : "Start를 눌러 시작");
       if (g.myStart && (g.peerStart || g.solo)) {   // 둘 다 Start를 눌러야 시작한다 (아주주는 바로 동의)
-        const t = performance.now(); g.phase = "countdown"; g.playAt = t + (g.game === "meow" ? 7000 : COUNT_MS); g.roomEnd = g.playAt + ROOM_MS; g.runT = t; startBaseline();
+        const t = performance.now(); g.phase = "countdown"; g.playAt = t + (g.game === "meow" ? 7000 : COUNT_MS); g.roomEnd = g.playAt + ROOM_MS; g.runT = t; setLive(true); startBaseline();
       }
       return;
     }
@@ -2240,7 +2240,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t22  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t23  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
