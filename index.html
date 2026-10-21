@@ -2336,14 +2336,14 @@
         const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff6b8a, roughness: 0.5 })); tongue.scale.set(0.1, 0.01, 0.03); tongue.position.set(0, -0.04, 0.012); mouthOpen.add(tongue);
         mouthOpen.visible = false; face.add(mouthOpen);
         // 고리 화살표: 진짜 3D 고리라서 앞쪽은 몸 앞으로, 뒤쪽은 몸 뒤로 지나간다. 뾰족한 머리가 가는 방향의 앞에 있다.
-        const tilt = new THREE.Group(); tilt.rotation.order = "ZXY"; tilt.rotation.set(1.18, 0, 0.26); tilt.visible = withRing; root.add(tilt);   // 대각선(/)으로 기울여 BI처럼
+        const tilt = new THREE.Group(); tilt.rotation.order = "ZXY"; tilt.rotation.set(-1.18, 0, 0.26); tilt.visible = withRing; root.add(tilt);   // 대각선(/)으로 기울여 BI처럼
         const spin = new THREE.Group(); tilt.add(spin);
         const ringMat = new THREE.MeshStandardMaterial({ color: 0x4d4d4d, roughness: 0.4, metalness: 0.1 });
         const R = 1.55, arc = Math.PI * 2 * 0.84;
         spin.add(new THREE.Mesh(new THREE.TorusGeometry(R, 0.078, 18, 140, arc), ringMat));
         const head = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.42, 28), ringMat);
-        head.position.set(Math.cos(arc) * R, Math.sin(arc) * R, 0); head.rotation.z = arc; spin.add(head);
-        const tailCap = new THREE.Mesh(new THREE.SphereGeometry(0.078, 14, 10), ringMat); tailCap.position.set(R, 0, 0); spin.add(tailCap);
+        head.position.set(R, 0, 0); head.rotation.z = Math.PI; spin.add(head);
+        const tailCap = new THREE.Mesh(new THREE.SphereGeometry(0.078, 14, 10), ringMat); tailCap.position.set(Math.cos(arc) * R, Math.sin(arc) * R, 0); spin.add(tailCap);
         let tx = 0, ty = 0, px = 0, py = 0, blinkAt = 0, open = 0, pulse = 0;
         phone.addEventListener("pointermove", (ev) => { const r = phone.getBoundingClientRect(); tx = ((ev.clientX - r.left) / r.width - 0.5) * 2; ty = ((ev.clientY - r.top) / r.height - 0.5) * 2; });
         return {
@@ -2351,7 +2351,7 @@
           // st: { t(초), dt(초), eat(입 벌림 목표 0~1), bump(0~1 한 번 튀기) }
           draw(st) {
             const t = st.t;
-            spin.rotation.z += st.dt * 1.15;   // 화살표 머리가 가는 방향이 앞이 되도록 같은 방향으로 돈다
+            spin.rotation.z -= st.dt * 1.15;   // 화살표 머리가 가는 방향이 앞이 되도록 같은 방향으로 돈다
             root.position.y = Math.sin(t * 1.8) * 0.07; body.rotation.z = Math.sin(t * 1.1) * 0.04;
             px += (tx - px) * 0.06; py += (ty - py) * 0.06; root.rotation.y = px * 0.35; root.rotation.x = py * 0.22;
             if (t > blinkAt) { blinkAt = t + 2.6 + Math.random() * 2; eyes.forEach((e) => (e.userData.blink = t)); }
