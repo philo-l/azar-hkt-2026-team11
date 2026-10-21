@@ -1913,6 +1913,11 @@
     phone.style.transform = `scale(${s})`;
   }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
+  // 폰은 주소창, 상태바, 회전 때 크기가 바뀌어도 resize가 안 오는 경우가 있어서 다시 맞춘다.
+  for (const ev of ["orientationchange", "pageshow", "focus"]) addEventListener(ev, () => setTimeout(fit, 150));
+  document.addEventListener("visibilitychange", () => setTimeout(fit, 150));
+  let lastSize = "";
+  setInterval(() => { const k = innerWidth + "x" + innerHeight + "x" + (window.visualViewport ? Math.round(visualViewport.height) : 0); if (k !== lastSize) { lastSize = k; fit(); } }, 400);
   if (/[?&]debug/.test(location.search)) document.body.classList.add("showdebug");
 
   // ---------- 조각 만들기 ----------
