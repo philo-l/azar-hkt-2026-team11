@@ -232,8 +232,8 @@
   #s-welcome .hero { position: absolute; left: 24px; top: 70px; width: 345px; height: calc(300px + min(var(--dy, 0px), 0px)); border-radius: 28px; background: linear-gradient(180deg, #dcf7e8, #c7edfa); overflow: hidden; }
   .avatar { position: relative; display: block; }
   .avatar > svg.body { width: 100%; height: 100%; }
-  .avatar .crown { position: absolute; left: 16%; top: -9%; width: 40%; transform: rotate(-18deg); }
-  .avatar .hat { position: absolute; left: 34%; top: -10%; width: 30%; transform: rotate(8deg); }
+  .avatar .crown { position: absolute; left: 12%; top: -14%; width: 46%; transform: rotate(-18deg); }
+  .avatar .hat { position: absolute; left: 29%; top: -30%; width: 42%; transform: rotate(8deg); }
   #s-welcome .hero .avatar { position: absolute; left: calc(50% - 105px); top: calc(50% - 105px); width: 210px; height: 210px; transform: scale(var(--kh, 1)); }
   #s-welcome h1, #s-camera h1, .h1 { position: absolute; left: 24px; margin: 0; font: 900 30px/1.2 "Noto Sans"; }
   .p15 { position: absolute; left: 24px; width: 345px; margin: 0; font: 400 15px/1.45 "Noto Sans"; color: #aaa; }
@@ -495,12 +495,12 @@
   #s-finding .ring:nth-of-type(2) { animation-delay: 1s; }
   #s-finding .ring:nth-of-type(3) { animation-delay: 2s; }
   @keyframes radar { 0% { scale: .32; opacity: .75; } 55% { opacity: .3; } 100% { scale: 1.1; opacity: 0; } }
-  #phone .avatar svg.cap { position: absolute; left: 22%; top: -3%; width: 42%; transform: rotate(-8deg); }
-  #phone .avatar svg.flower { position: absolute; left: 2%; top: 10%; width: 34%; }
-  #phone .avatar svg.bow { position: absolute; left: 44%; top: -6%; width: 38%; transform: rotate(10deg); }
+  #phone .avatar svg.cap { position: absolute; left: 22%; top: -17%; width: 58%; transform: rotate(-8deg); }
+  #phone .avatar svg.flower { position: absolute; left: 4%; top: 2%; width: 36%; }
+  #phone .avatar svg.bow { position: absolute; left: 47%; top: -2%; width: 42%; transform: rotate(12deg); }
   /* Finding: 레이더 위에 아바타들이 나타났다 사라진다(상대를 찾는 느낌) */
   #phone #s-finding .ravs { position: absolute; inset: 0; pointer-events: none; }
-  #phone #s-finding .ravatar { position: absolute; width: 74px; height: 74px; opacity: 0; animation: ravLife 2.8s ease-in-out forwards; }
+  #phone #s-finding .ravatar { position: absolute; width: 52px; height: 52px; opacity: 0; animation: ravLife 2.8s ease-in-out forwards; }
   @keyframes ravLife { 0% { scale: .2; opacity: 0; translate: 0 6px; } 16% { scale: 1.12; opacity: 1; } 28% { scale: 1; } 76% { opacity: 1; translate: 0 -8px; } 100% { scale: .65; opacity: 0; translate: 0 -14px; } }
 </style>
 </head>
@@ -2030,7 +2030,7 @@
   // ---------- 조각 만들기 ----------
   function avatar(color, acc) {
     const crown = '<svg class="crown" viewBox="0 0 40 30"><path d="M2 27L5 6L14 16L20 2L26 16L35 6L38 27Z" fill="#FFD93B" stroke="#111" stroke-width="3" stroke-linejoin="round"/></svg>';
-    const hat = '<svg class="hat" viewBox="0 0 40 50"><rect x="9" y="2" width="22" height="34" rx="2" fill="#111"/><rect x="3" y="33" width="34" height="9" rx="4.5" fill="#111"/></svg>';
+    const hat = '<svg class="hat" viewBox="0 0 40 50"><rect x="9" y="2" width="22" height="34" rx="2" fill="#1c1c1c" stroke="#5a5a5a" stroke-width="1.6"/><rect x="3" y="33" width="34" height="9" rx="4.5" fill="#1c1c1c" stroke="#5a5a5a" stroke-width="1.6"/></svg>';
     const cap = '<svg class="cap" viewBox="0 0 48 32"><path d="M4 28C2 12 14 2 28 5C38 8 44 16 42 26Z" fill="#2f6bff"/><path d="M0 28C8 24 24 25 32 30L0 31Z" fill="#2f6bff"/></svg>';
     const flower = '<svg class="flower" viewBox="0 0 40 40"><g fill="#ff7eb6"><circle cx="12" cy="12" r="7"/><circle cx="26" cy="10" r="6"/><circle cx="31" cy="22" r="6.5"/><circle cx="19" cy="30" r="7"/><circle cx="8" cy="24" r="6"/></g><circle cx="19" cy="19" r="5" fill="#ffd54a"/></svg>';
     const bow = '<svg class="bow" viewBox="0 0 48 34"><path d="M24 17 L2 2 L8 30Z" fill="#5a2fd8"/><path d="M24 17 L46 8 L40 32Z" fill="#5a2fd8"/><circle cx="24" cy="17" r="6" fill="#4a22b8"/></svg>';
@@ -2287,22 +2287,22 @@
   }
 
   // ---------- Finding 레이더에 아바타가 나타났다 사라진다 ----------
-  const RAD_AVS = [["#6EA8FF", "cap"], ["#FFD54A", "flower"], ["#B59CFF", "bow"], ["#FF946D", "crown"], ["#00f59e", "hat"], ["#FF7EB6", ""]];
+  const RAD_AVS = [["#6EA8FF", "cap"], ["#FFD54A", "flower"], ["#B59CFF", "bow"], ["#FF946D", "crown"], ["#FF7EB6", ""]];   // 민트색은 가운데 아바타만 쓴다
   let radarLast = -1;
   setInterval(() => {
     if (phone.dataset.screen !== "finding" || document.hidden) return;
     const box = $("radarAv"); if (box.children.length >= 4) return;
     let i; do { i = Math.floor(Math.random() * RAD_AVS.length); } while (i === radarLast); radarLast = i;
     // 이미 떠 있는 아바타와 겹치지 않는 자리를 고른다
-    const taken = [...box.children].map((e) => [parseFloat(e.style.left) + 37, parseFloat(e.style.top) + 37]);
+    const taken = [...box.children].map((e) => [parseFloat(e.style.left) + 26, parseFloat(e.style.top) + 26]);
     let cx = 0, cy = 0;
     for (let t = 0; t < 12; t++) {
       const ang = Math.random() * Math.PI * 2, r = 105 + Math.random() * 60;
       cx = 197 + Math.cos(ang) * r * 1.05; cy = 420 + Math.sin(ang) * r * 0.9;
-      if (taken.every((p) => Math.hypot(p[0] - cx, p[1] - cy) > 92)) break;
+      if (taken.every((p) => Math.hypot(p[0] - cx, p[1] - cy) > 70)) break;
     }
     const el = document.createElement("div"); el.className = "ravatar"; el.innerHTML = avatar(RAD_AVS[i][0], RAD_AVS[i][1]);
-    el.style.left = Math.max(6, Math.min(393 - 80, cx - 37)) + "px"; el.style.top = (cy - 37) + "px";
+    el.style.left = Math.max(6, Math.min(393 - 60, cx - 26)) + "px"; el.style.top = (cy - 26) + "px";
     el.firstChild.style.cssText += ";width:100%;height:100%";
     box.appendChild(el); setTimeout(() => el.remove(), 2900);
   }, 650);
@@ -2399,7 +2399,7 @@
   if (/[?&]autocam/.test(location.search) || localStorage.getItem("azar.cam") === "1") { UI.welcomed = true; startCamera(); }
 
   // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
-  window.__azar = { g, state, UI, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
+  window.__azar = { avatar, g, state, UI, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
   if (!/nopeer/.test(location.search)) claimSlot(0);
   // 폰이 다시 앞으로 오거나 네트워크가 돌아오면, 서버 연결이 끊겨 있고 상대와도 안 이어져 있을 때 자리를 새로 잡는다.
   const reclaim = () => { if (/nopeer/.test(location.search) || (state.data && state.data.open)) return; if (!state.peer || state.peer.disconnected || state.peer.destroyed) claimSlot(0); };
