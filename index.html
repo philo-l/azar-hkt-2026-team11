@@ -99,6 +99,7 @@
   #mascot { display: none !important; }
   .m3dgame { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   .cell.mascot .m3dgame { display: block; }
+  #azRun { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   #azT { position: absolute; inset: 0; pointer-events: none; display: none; }
   .cell.mascot #azT { display: block; }
   #azT img { position: absolute; width: 17%; height: 17%; translate: -50% -50%; }
@@ -599,7 +600,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t14</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t15</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -767,6 +768,7 @@
       <button id="readyBtn" class="primary" type="button" disabled>연결 기다리는 중</button>
       <button id="soloBtn" class="ghost" type="button" disabled>혼자 해보기: 웃음 참기</button>
       <button id="soloEatBtn" class="ghost" type="button" disabled>혼자 해보기: 고진감래</button>
+      <button id="soloMeowBtn" class="ghost" type="button" disabled>혼자 해보기: Squash &amp; Squeak</button>
     </div>
     <div id="afterRow" class="row" style="margin-top:12px" hidden>
       <button id="chatBtn" class="primary" type="button">Switch to Video Chat</button>
@@ -1274,6 +1276,7 @@
     rb.textContent = !linked() ? "연결 기다리는 중" : g.myReady ? "상대 기다리는 중..." : "준비";
     $("soloBtn").disabled = playing() || !state.landmarker;
     $("soloEatBtn").disabled = playing() || !state.landmarker;
+    $("soloMeowBtn").disabled = playing() || !state.landmarker;
     const after = g.phase === "reaction" || g.phase === "chat", mascot = g.opp === "mascot";
     $("afterRow").hidden = !after;
     $("emojiRow").hidden = !after;
@@ -1312,11 +1315,14 @@
     if (audio.mix) audio.mix.gain.value = on ? 1 : 0;
   }
 
+  const GAMES = ["laugh", "eat", "meow"];
+  const nextGameId = () => g.lastGame ? GAMES[(GAMES.indexOf(g.lastGame) + 1) % GAMES.length] : GAMES[Math.floor(Math.random() * GAMES.length)];
+  const higherWins = (game) => game === "eat" || game === "meow";
   function checkStart() {
     if (g.myReady && g.peerReady && isHost() && !playing()) {
       // 두 사람에게 서로 다른 필터를 나눠준다 (호스트가 정해서 알려준다)
       const [a, b] = makeSeqs();
-      const game = g.lastGame ? (g.lastGame === "laugh" ? "eat" : "laugh") : (Math.random() < 0.5 ? "laugh" : "eat");
+      const game = nextGameId();
       const seed = Math.floor(Math.random() * 1e9);
       sendMsg({ t: "go", seq: [a, b], game, seed });
       beginRound(false, a, b, game, seed);
@@ -1335,6 +1341,7 @@
       finalTimer: null, timeUpDone: false, note: "", mySeq, peerSeq, myKO: false, peerKO: false, koTimer: null,
       game, seed, lastGame: game, eaten: new Set(), mouthOpen: false, needClose: false, openTarget: null, openAt: 0 });
     state.eatTargets = [];
+    g.run = game === "meow" ? makeRun(seed) : null; g.azRun = game === "meow" ? Object.assign(makeRun(seed), { vmul: 0.93 }) : null; g.runT = 0;
     setGameLabels(game);
     state.filterStage = -1; setVoice(null); state.voiceFor = null;
     Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0;
@@ -1352,7 +1359,7 @@
   }
   function onTimeUp() {
     g.timeUpDone = true; g.myFinal = g.score;
-    if (g.mascot) { if (g.game === "eat") g.mascotFinal = Math.round(g.peerScore || 0); g.peerFinal = g.mascotFinal; tryFinal(); return; }
+    if (g.mascot) { if (higherWins(g.game)) g.mascotFinal = Math.round(g.peerScore || 0); g.peerFinal = g.mascotFinal; tryFinal(); return; }
     if (g.solo) { finish("survive"); return; }
     sendMsg({ t: "final", gauge: g.score });
     tryFinal();
@@ -1362,10 +1369,11 @@
     if (g.phase !== "play" || !g.timeUpDone || g.peerFinal == null) return;
     g.peerScore = g.peerFinal;
     const diff = g.myFinal - g.peerFinal;
-    const better = g.game === "eat" ? -diff : diff;   // 웃음 참기는 낮을수록, 고진감래는 높을수록 이긴다
+    const better = higherWins(g.game) ? -diff : diff;   // 웃음 참기는 낮을수록, 고진감래는 높을수록 이긴다
     finish(Math.abs(diff) < SCORE_TIE ? "draw" : better < 0 ? "win" : "lose");
   }
   const RESULT = { ko_lose: "에너지가 다 닳았어요! 졌어요!", ko_win: "이겼어요! 상대 에너지가 바닥났어요", win: "이겼어요! 덜 웃었어요", lose: "졌어요! 더 많이 웃었어요", draw: "무승부", survive: "끝까지 해냈어요!", nopeer: "상대 결과를 받지 못했어요" };
+  const RESULT_MEOW = { win: "이겼어요! 더 멀리 갔어요", lose: "졌어요! 더 적게 갔어요", draw: "무승부", survive: "끝! 혼자서도 해냈어요", nopeer: "상대 결과를 받지 못했어요" };
   const RESULT_EAT = { win: "이겼어요! 더 많이 먹었어요", lose: "졌어요! 먹은 게 적어요", draw: "무승부", survive: "끝! 혼자서도 해냈어요", nopeer: "상대 결과를 받지 못했어요" };
   // 게임이 끝나면 금, 흔들림, 붉은 번쩍임 같은 데미지 효과를 지운다(결과 화면과 비디오챗으로 끌고 가지 않는다).
   function clearFx() { Object.assign(state.fx, { shake: 0, impact: 0, rings: [], sparks: [], bursts: [], cracks: [], hpGhost: 1 }); state.hp = 1; state.flash = 0; }
@@ -1376,8 +1384,8 @@
     clearFx();
     g.result = r; g.won = r === "win" || r === "ko_win";
     if (g.won && !g.rewarded && !(g.solo && !g.mascot)) { g.rewarded = true; addGems(3); }   // 이기면 3젬
-    g.resultMsg = (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
-    g.resultSub = `${g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + ((g.solo && !g.mascot) || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
+    g.resultMsg = (g.game === "meow" && RESULT_MEOW[r]) || (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
+    g.resultSub = `${g.game === "meow" ? "달린 거리" : g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + ((g.solo && !g.mascot) || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
     setBar(1);
     log("결과: " + r + " / 내 점수 " + fmt(g.score, 0));
     ui();
@@ -1425,7 +1433,7 @@
     state.matchMode = "mascot";
     $("remoteCell").classList.add("has-stream", "mascot");
     beginRound(true, makeSeqs()[0], null, game, Math.floor(Math.random() * 1e9));
-    g.opp = "mascot"; g.mascot = true; g.mascotFinal = game === "eat" ? 70 : 45;
+    g.opp = "mascot"; g.mascot = true; g.mascotFinal = game === "laugh" ? 45 : 70;
     chip("chipLink", "ok", "Azuzu");
   }
 
@@ -1467,13 +1475,159 @@
     return out;
   }
   function setGameLabels(game) {
-    const eat = game === "eat";
-    $("sg").textContent = eat ? "Yum or Yuck" : "Crack Up";
+    const eat = game === "eat" || game === "meow", meow = game === "meow";
+    $("sg").textContent = meow ? "Squash & Squeak" : eat ? "Yum or Yuck" : "Crack Up";
     $("gHint").textContent = eat ? "이모지에 입을 대고 입을 열었다 닫아서 먹어요. 음식은 +10, 똥과 해골은 -25! 점수가 높은 사람이 이겨요." : "웃을수록 에너지가 닳아요. 에너지가 먼저 바닥나면 바로 지고, 30초를 버티면 점수가 더 낮은 사람이 이겨요.";
-    $("lblMe").textContent = eat ? "내 점수" : "내 웃음 점수";
-    $("lblOpp").textContent = eat ? "상대 점수" : "상대 웃음 점수";
+    $("lblMe").textContent = meow ? "내 거리" : eat ? "내 점수" : "내 웃음 점수";
+    $("lblOpp").textContent = meow ? "상대 거리" : eat ? "상대 점수" : "상대 웃음 점수";
+    if (meow) $("gHint").textContent = "높은 목소리로 미야오~ 하면 날씬해져 좁은 틈을, 낮은 목소리면 납작해져 낮은 틈을 지나가요. 허들 10개를 먼저 넘으면 이겨요.";
     $("sMe").style.background = eat ? "#12b76a" : "#ff6b6b";
     $("sOpp").style.background = eat ? "#7dd3a8" : "#ffb020";
+  }
+  // ---------- Squash & Squeak: 목소리 높낮이로 날씬/납작해져 장애물을 지나가는 고양이 아주주 ----------
+  // 높은 "미야오~" = 날씬(-1), 낮은 "미야오~" = 납작(+1). 장애물 S는 좁은 틈, Q는 낮은 틈.
+  const RUN = { N: 10, V: 0.44, X0: 1.4, SPACE: 1.05, KNOCK: 0.55 };
+  const runX = (i) => RUN.X0 + i * RUN.SPACE, RUN_GOAL = runX(RUN.N - 1) + 0.9;
+  function makeRun(seed) {
+    const r = rng((seed ^ 0x9e3779b1) >>> 0), obs = [];
+    for (let i = 0; i < RUN.N; i++) obs.push(i > 0 && r() < 0.3 ? obs[i - 1] : (i % 2 ? "Q" : "S") === (r() < 0.5 ? "S" : "Q") ? "S" : "Q");
+    return { p: 0, shape: 0, knock: 0, flash: 0, passed: 0, obs, legs: 0, done: false, hits: 0 };
+  }
+  function stepRun(R, dt, target) {
+    R.shape += (target - R.shape) * Math.min(1, dt * 9);
+    const prev = R.p;
+    if (R.knock > 0) { R.knock -= dt; R.p -= 1.3 * dt; } else if (!R.done) R.p += RUN.V * (R.vmul || 1) * dt;
+    R.flash = Math.max(0, R.flash - dt * 1.4);
+    R.legs += (R.knock > 0 ? -2.5 : 1) * dt * 9;
+    const i = R.passed;
+    if (R.p > prev && i < RUN.N) {
+      const x = runX(i);
+      if (prev < x && R.p >= x) {
+        const ok = R.obs[i] === "S" ? R.shape < -0.55 : R.shape > 0.55;
+        if (ok) R.passed = i + 1; else { R.p = x - 0.02; R.knock = RUN.KNOCK; R.flash = 1; R.hits++; }
+      }
+    }
+    if (R.p >= RUN_GOAL) R.done = true;
+    if (R.p < 0) R.p = 0;
+  }
+  // 마이크 높낮이(F0) 추정: 자기상관
+  const voice = { cls: 0, hold: 0, f: 0, kb: 0, buf: null };
+  addEventListener("keydown", (e) => { if (e.key === "ArrowUp") voice.kb = -1; if (e.key === "ArrowDown") voice.kb = 1; });
+  addEventListener("keyup", (e) => { if ((e.key === "ArrowUp" && voice.kb < 0) || (e.key === "ArrowDown" && voice.kb > 0)) voice.kb = 0; });
+  function readVoice(now) {
+    let cls = 0;
+    const an = audio.an;
+    if (an && audio.ctx && audio.ctx.state === "running") {
+      if (!voice.buf) voice.buf = new Float32Array(an.fftSize);
+      an.getFloatTimeDomainData(voice.buf);
+      const b = voice.buf, n = b.length; let rms = 0; for (let i = 0; i < n; i++) rms += b[i] * b[i]; rms = Math.sqrt(rms / n);
+      if (rms > 0.012) {
+        const sr = audio.ctx.sampleRate, lo = Math.floor(sr / 900), hi = Math.floor(sr / 80); let best = 0, bl = 0;
+        for (let lag = lo; lag <= hi; lag++) { let s = 0; for (let i = 0; i + lag < n; i += 2) s += b[i] * b[i + lag]; if (s > best) { best = s; bl = lag; } }
+        let e0 = 0; for (let i = 0; i < n; i += 2) e0 += b[i] * b[i];
+        if (bl && best / (e0 || 1) > 0.5) { voice.f = sr / bl; cls = voice.f >= 270 ? -1 : 1; }
+      }
+    }
+    if (voice.kb) cls = voice.kb;
+    if (cls) { voice.cls = cls; voice.hold = now + 180; } else if (now > voice.hold) voice.cls = 0;
+    return voice.cls;
+  }
+  // 그리기: 뒤에서 본 골목길. W는 캔버스 한 변.
+  let catC = null;
+  function drawRunner(c, W, R, now, bg) {
+    const hz = W * 0.36, gy = W * 0.9, S = (d) => 1 / (1 + Math.max(-0.5, d) * 0.85), halfAt = (s) => W * (0.07 + 0.4 * s), yAt = (s) => hz + (gy - hz) * s;
+    c.save();
+    if (bg) { const gr = c.createLinearGradient(0, 0, 0, W); gr.addColorStop(0, "#cfeee0"); gr.addColorStop(1, "#b9e3f4"); c.fillStyle = gr; c.fillRect(0, 0, W, W); }
+    // 골목 벽 (좌우)
+    for (const sd of [-1, 1]) {
+      const x0 = W / 2 + sd * W * 0.07, x1 = sd < 0 ? 0 : W;
+      c.beginPath(); c.moveTo(x1, 0); c.lineTo(x0 - sd * 0, hz - W * 0.16); c.lineTo(x0, hz); c.lineTo(x1, W); c.closePath();
+      const gr = c.createLinearGradient(x1, 0, x0, 0); gr.addColorStop(0, "rgba(58,40,52,.96)"); gr.addColorStop(1, "rgba(104,72,84,.9)"); c.fillStyle = gr; c.fill();
+      c.save(); c.clip(); c.strokeStyle = "rgba(20,10,20,.28)"; c.lineWidth = 2;
+      for (let k = 0; k < 12; k++) { const s = Math.pow(((k + 1 - ((R.p * 1.3) % 1)) / 12), 1.6); c.beginPath(); c.moveTo(x1, hz + (gy - hz) * s * 1.15 - W * 0.12 * (1 - s) * 0 ); c.lineTo(x0, hz); c.stroke(); }
+      c.restore();
+    }
+    // 바닥
+    c.beginPath(); c.moveTo(W / 2 - halfAt(0), hz); c.lineTo(W / 2 + halfAt(0), hz); c.lineTo(W / 2 + halfAt(1.12), W); c.lineTo(W / 2 - halfAt(1.12), W); c.closePath();
+    c.fillStyle = "rgba(46,40,58,.93)"; c.fill();
+    c.save(); c.clip();
+    c.strokeStyle = "rgba(255,255,255,.1)"; c.lineWidth = 2;
+    for (let k = 0; k < 16; k++) { const d = k - ((R.p * 1) % 1), s = S(d); const y = yAt(s); c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+    c.restore();
+    // 골인선
+    { const d = RUN_GOAL - R.p; if (d < 9) { const s = S(d), y = yAt(s), hw = halfAt(s), h = W * 0.04 * s; for (let k = 0; k < 8; k++) { c.fillStyle = k % 2 ? "#fff" : "#222"; c.fillRect(W / 2 - hw + (k * 2 * hw) / 8, y - h, (2 * hw) / 8, h); } } }
+    // 장애물 (먼 것부터)
+    for (let i = RUN.N - 1; i >= R.passed - 1; i--) {
+      if (i < 0) continue;
+      const d = runX(i) - R.p; if (d > 9 || d < -0.5) continue;
+      const s = S(d), y = yAt(s), hw = halfAt(s), u = W * s;
+      if (R.obs[i] === "S") {
+        const slit = u * 0.1, h = u * 0.55;
+        for (const sd of [-1, 1]) {
+          const bx = sd < 0 ? W / 2 - hw : W / 2 + slit, bw = hw - slit;
+          c.fillStyle = "#b8794a"; c.fillRect(bx, y - h, bw, h);
+          c.fillStyle = "#d89a66"; c.fillRect(bx, y - h, bw, h * 0.14);
+          c.strokeStyle = "rgba(70,36,16,.55)"; c.lineWidth = Math.max(1, u * 0.012);
+          for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(bx, y - h + (h * k) / 4); c.lineTo(bx + bw, y - h + (h * k) / 4); c.stroke(); }
+        }
+        c.fillStyle = "rgba(255,255,255,.9)"; c.font = `900 ${Math.max(10, u * 0.12)}px sans-serif`; c.textAlign = "center"; c.fillText("▶ ◀", W / 2, y - h - u * 0.03);
+      } else {
+        const lowY = y - u * 0.2, topY = y - u * 0.62;
+        for (const sd of [-1, 1]) { c.fillStyle = "#6b6b7a"; c.fillRect(sd < 0 ? W / 2 - hw : W / 2 + hw - u * 0.07, topY, u * 0.07, y - topY); }
+        c.fillStyle = "#f2b630"; c.fillRect(W / 2 - hw, topY, 2 * hw, lowY - topY);
+        c.save(); c.beginPath(); c.rect(W / 2 - hw, topY, 2 * hw, lowY - topY); c.clip(); c.fillStyle = "#2a2a2a";
+        for (let k = -2; k < 12; k++) { const sx = W / 2 - hw + k * u * 0.12; c.beginPath(); c.moveTo(sx, lowY); c.lineTo(sx + u * 0.06, lowY); c.lineTo(sx + u * 0.12 + u * 0.06, topY); c.lineTo(sx + u * 0.12, topY); c.fill(); }
+        c.restore();
+        c.fillStyle = "rgba(255,255,255,.95)"; c.font = `900 ${Math.max(10, u * 0.12)}px sans-serif`; c.textAlign = "center"; c.fillText("▼", W / 2, topY - u * 0.03);
+      }
+    }
+    // 고양이 아주주
+    if (!catC) { catC = document.createElement("canvas"); catC.width = catC.height = 240; }
+    const k = catC.getContext("2d"); k.clearRect(0, 0, 240, 240);
+    const sh = R.shape, sq = Math.max(0, sh), sl = Math.max(0, -sh), sx = (1 + 0.55 * sq) * (1 - 0.6 * sl), sy = (1 - 0.5 * sq) * (1 + 0.16 * sl);
+    k.save(); k.translate(120, 228); k.scale(sx, sy);
+    const mint = "#00f59e", dk = "#0b0b0b", sw = Math.sin(R.legs) * 9;
+    k.fillStyle = "#00c985"; k.fillRect(-26 + sw, -26, 14, 26); k.fillRect(12 - sw, -26, 14, 26);   // 다리
+    k.strokeStyle = mint; k.lineWidth = 12; k.lineCap = "round"; k.beginPath(); k.moveTo(34, -54); k.quadraticCurveTo(70, -80 + Math.sin(R.legs * 0.6) * 10, 52, -118); k.stroke();   // 꼬리
+    k.fillStyle = mint; k.beginPath(); k.ellipse(0, -50, 44, 36, 0, 0, 7); k.fill();   // 몸
+    k.fillStyle = "#00d98a"; k.beginPath(); k.ellipse(0, -44, 30, 18, 0, 0, 7); k.fill();
+    k.fillStyle = mint; k.beginPath(); k.arc(0, -108, 46, 0, 7); k.fill();   // 머리
+    k.beginPath(); k.moveTo(-40, -128); k.lineTo(-34, -172); k.lineTo(-8, -146); k.fill(); k.beginPath(); k.moveTo(40, -128); k.lineTo(34, -172); k.lineTo(8, -146); k.fill();   // 귀
+    k.fillStyle = "#ff9fb8"; k.beginPath(); k.moveTo(-33, -140); k.lineTo(-31, -160); k.lineTo(-17, -147); k.fill(); k.beginPath(); k.moveTo(33, -140); k.lineTo(31, -160); k.lineTo(17, -147); k.fill();
+    k.fillStyle = dk; k.beginPath(); k.ellipse(-15, -112, 5.5, 8, 0, 0, 7); k.fill(); k.beginPath(); k.ellipse(15, -112, 5.5, 8, 0, 0, 7); k.fill();   // 얼굴
+    k.strokeStyle = dk; k.lineWidth = 4; k.lineCap = "round"; k.beginPath(); k.moveTo(-14, -94); k.quadraticCurveTo(0, -84, 14, -94); k.stroke();
+    k.lineWidth = 2; for (const sd of [-1, 1]) { k.beginPath(); k.moveTo(sd * 30, -100); k.lineTo(sd * 52, -104); k.moveTo(sd * 30, -95); k.lineTo(sd * 52, -93); k.stroke(); }
+    k.restore();
+    if (R.flash > 0 && Math.floor(now / 90) % 2 === 0) { k.globalCompositeOperation = "source-atop"; k.fillStyle = `rgba(255,40,40,${0.35 + 0.5 * R.flash})`; k.fillRect(0, 0, 240, 240); k.globalCompositeOperation = "source-over"; }
+    const cs = W * 0.52, cx = W / 2, cy = gy + W * 0.06;
+    c.drawImage(catC, cx - cs / 2, cy - cs, cs, cs);
+    if (R.flash > 0.5) { c.fillStyle = `rgba(255,30,30,${(R.flash - 0.5) * 0.25})`; c.fillRect(0, 0, W, W); }
+    // 진행 표시
+    c.fillStyle = "rgba(255,255,255,.95)"; c.shadowColor = "rgba(0,0,0,.6)"; c.shadowBlur = 4; c.font = `800 ${W * 0.05}px sans-serif`; c.textAlign = "left"; c.fillText(`${Math.min(R.passed, RUN.N)}/${RUN.N}`, W * 0.04, W * 0.07); c.shadowBlur = 0;
+    c.restore();
+  }
+  function playMeow(now, el) {
+    const dt = Math.min(0.1, Math.max(0, (now - (g.runT || now)) / 1000)); g.runT = now;
+    const R = g.run; if (!R) return;
+    const cls = readVoice(now);
+    stepRun(R, dt, cls < 0 ? -1 : cls > 0 ? 1 : 0);
+    g.score = Math.max(0, R.p) * 10;
+    if (g.mascot) {
+      const A = g.azRun, nx = A.passed < RUN.N ? runX(A.passed) - A.p : 9, want = A.obs[A.passed] === "S" ? -1 : 1;
+      if (A.flash === 1) A.plan = Math.random() < 0.88;
+      if (A.plan === undefined) A.plan = Math.random() < 0.88;
+      stepRun(A, dt, nx < 0.5 ? (A.plan ? want : -want * 0) : 0);
+      if (A.passed !== A.lastPassed) { A.lastPassed = A.passed; A.plan = Math.random() < 0.78; }
+      g.peerScore = A.done ? 100 + Math.max(0, (GAME_MS - el) / 1000) : Math.max(0, A.p) * 10;
+    }
+    if (now - g.lastSend > 200) { g.lastSend = now; sendMsg({ t: "score", s: g.score }); }
+    setMsg("미야오~ 로 지나가요!", `내 거리 ${R.passed}/${RUN.N}` + (g.solo && !g.mascot ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`) + ` · 남은 ${Math.max(0, Math.ceil((GAME_MS - el) / 1000))}초` + roomText(now));
+    setBar(el / GAME_MS);
+    $("sMe").style.width = Math.min(100, R.p / RUN_GOAL * 100) + "%";
+    $("sOpp").style.width = Math.min(100, g.peerScore >= 100 ? 100 : g.peerScore / 10 / RUN_GOAL * 100) + "%";
+    if (R.done && !g.timeUpDone) { g.score = 100 + Math.max(0, (GAME_MS - el) / 1000); onTimeUp(); }
+    else if (g.mascot && g.azRun.done && !g.timeUpDone) onTimeUp();
+    else if (el >= GAME_MS && !g.timeUpDone) onTimeUp();
   }
   function playEat(now, el) {
     const v = state.values, vid = $("localVideo");
@@ -1540,6 +1694,7 @@
     if (g.phase === "play") {
       const el = now - g.playAt, dt = now - g.lastT; g.lastT = now;
       if (g.game === "eat") { playEat(now, el); return; }
+      if (g.game === "meow") { playMeow(now, el); return; }
       if (g.myKO) { setMsg("KO!", "에너지가 다 닳았어요..."); return; }
       const step = Math.floor(el / STEP_MS);
       state.filterStage = 0;
@@ -1576,6 +1731,7 @@
   $("againBtn").addEventListener("click", nextGame);
   $("soloBtn").addEventListener("click", () => { unlockAudio(); startMascotRound("laugh"); });
   $("soloEatBtn").addEventListener("click", () => { unlockAudio(); startMascotRound("eat"); });
+  $("soloMeowBtn").addEventListener("click", () => { unlockAudio(); startMascotRound("meow"); });
   $("chatBtn").addEventListener("click", () => $("paySheet").classList.add("show"));
   $("payNo").addEventListener("click", () => $("paySheet").classList.remove("show"));
   $("payOk").addEventListener("click", () => { $("paySheet").classList.remove("show"); sendMsg({ t: "chat" }); enterChat("Video chat connected"); });
@@ -1816,6 +1972,7 @@
     const tracks = state.stream ? state.stream.getAudioTracks() : [];
     if (!tracks.length || !audio.ctx) { chip("chipMic", "bad", "마이크 없음"); log("마이크가 없어 목소리 변조가 꺼집니다."); return; }
     audio.mic = audio.ctx.createMediaStreamSource(new MediaStream(tracks));
+    audio.an = audio.ctx.createAnalyser(); audio.an.fftSize = 2048; audio.mic.connect(audio.an);
     wireMic();
     chip("chipMic", "ok", "켜짐");
   }
@@ -1947,6 +2104,7 @@
         cctx.restore();
       }
       drawTargets();
+      if (g.game === "meow" && g.run && (g.phase === "countdown" || g.phase === "play")) drawRunner(cctx, CW, g.run, performance.now(), false);
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
     octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
@@ -2046,7 +2204,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t14  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t15  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2093,13 +2251,14 @@
   // ---------- 게임 문구 ----------
   const RULES = {
     laugh: { title: "Crack Up", tiles: [["funny", "Funny filters", "Silly faces pop up every few seconds."], ["awesome", "Stay straight", "Every laugh drains your HP."], ["love", "Win and earn", "The one who laughs less wins."]] },
+    meow: { title: "Squash & Squeak", tiles: [["wow", "High meow = slim", "Squeeze through narrow gaps."], ["moai", "Low meow = squash", "Duck under low gaps."], ["awesome", "10 hurdles", "Clear all 10, or go farthest."]] },
     eat: { title: "Yum or Yuck", tiles: [["wow", "Eat yum", "Open wide for yum: +10."], ["ghost", "Dodge yuck", "Eat yuck: −25."], ["awesome", "Top score wins", "Highest score in 30 sec wins."]] }
   };
   const FILTER_ICONS = ["@lips", "👃", "🎈", "⬇️", "@thought", "⚪"];   // 왕입, 왕코, 풍선 볼, 쭉 턱, 왕이마, 콩알 얼굴
   const RESULTS = {
-    win: ["You won!", (e) => e ? "You ate more" : "You laughed less", true],
+    win: ["You won!", (e) => e === "meow" ? "You went farther" : e === "eat" ? "You ate more" : "You laughed less", true],
     ko_win: ["You won!", () => "Their energy ran out", true],
-    lose: ["You lost!", (e) => e ? "You ate less" : "You laughed more", false],
+    lose: ["You lost!", (e) => e === "meow" ? "You went less far" : e === "eat" ? "You ate less" : "You laughed more", false],
     ko_lose: ["You lost!", () => "You ran out of energy", false],
     draw: ["It’s a draw", () => "So close", false],
     survive: ["You made it!", () => "Solo run", false],
@@ -2165,6 +2324,7 @@
     "ready: I am ready": { screen: "ready", pr: 0, mr: 1 }, "ready: both": { screen: "ready", pr: 1, mr: 1 },
     "rules: Crack Up": { screen: "rules", pr: 1, mr: 1, game: "laugh", startFrac: 0.4 }, "rules: Yum or Yuck": { screen: "rules", pr: 1, mr: 1, game: "eat", startFrac: 0.4 },
     "game: countdown": { screen: "game", cd: true, count: 3, game: "laugh" }, "game: Crack Up": { screen: "game", play: true, game: "laugh", el: 12000 }, "game: Yum or Yuck": { screen: "game", play: true, game: "eat", el: 9000 }, "game: exit confirm": { screen: "exit", play: true, game: "laugh", el: 9000 },
+    "rules: Squash & Squeak": { screen: "rules", pr: 1, mr: 1, game: "meow", startFrac: 0.4 }, "game: Squash & Squeak": { screen: "game", play: true, game: "meow", el: 12000 },
     "game: Yum or Yuck (Azuzu)": { screen: "game", play: true, game: "eat", el: 12000, mascot: true },
     "after: win": { screen: "after", result: "win", win: true, game: "laugh" }, "after: lose": { screen: "after", result: "lose", game: "laugh" }, "after: draw": { screen: "after", result: "draw", game: "laugh" },
     "after: win (Yum or Yuck)": { screen: "after", result: "win", win: true, game: "eat" },
@@ -2220,7 +2380,7 @@
       setT("fConn", `Seat: ${cp} · Link: ${cl}` + (last ? "\n" + last : ""));
       $("fConn").style.whiteSpace = "pre-line";
       setT("fewBtn", v === "left" ? "New Match" : "Keep waiting");
-      $("fewLink").style.display = v === "few" ? "block" : "none"; setT("fewLink", "Play Yum or Yuck with Azuzu");
+      $("fewLink").style.display = v === "few" ? "block" : "none"; setT("fewLink", "Play a quick game with Azuzu");
     }
 
     // Ready
@@ -2257,12 +2417,12 @@
       else if (roomMode && sec <= 15) setT("hudLabel", "Room closing");
     }
     if (V.screen === "game" || V.screen === "exit") {
-      const eat = V.game === "eat";
+      const eat = V.game === "eat" || V.game === "meow", meow = V.game === "meow";
       const goNow = !!V.play && V.el < 800, ctxt = goNow ? "GO!" : String(V.count || 3), ce = $("count");
       if (ce.textContent !== ctxt) { ce.textContent = ctxt; ce.classList.toggle("go", goNow); ce.classList.remove("pop"); void ce.offsetWidth; ce.classList.add("pop"); }
-      setT("gMsg2", V.cd ? (eat ? "Move your face to the emoji, then open and close your mouth" : "Keep a straight face. Staying still for a moment.") : "");
+      setT("gMsg2", V.cd ? (meow ? "Get ready to meow! High = slim, low = squash" : eat ? "Move your face to the emoji, then open and close your mouth" : "Keep a straight face. Staying still for a moment.") : "");
       // HP 줄: 웃음 참기는 에너지(HP), 고진감래는 점수. 영상 위에 따로 둔다.
-      const hpOf = (mine) => UI.dbg ? (mine ? 0.9 : 0.6) : eat ? Math.min(1, (mine ? g.score : g.peerScore || 0) / EAT_MAX) : mine ? state.hp : Math.max(0, 1 - (g.peerScore || 0) / HP_MAX);
+      const hpOf = (mine) => UI.dbg ? (mine ? 0.9 : 0.6) : meow ? Math.min(1, (mine ? (g.run ? g.run.p : 0) : (g.peerScore >= 100 ? RUN_GOAL : (g.peerScore || 0) / 10)) / RUN_GOAL) : eat ? Math.min(1, (mine ? g.score : g.peerScore || 0) / EAT_MAX) : mine ? state.hp : Math.max(0, 1 - (g.peerScore || 0) / HP_MAX);
       const setHp = (id, v) => { const f = $(id); f.style.width = Math.max(0, Math.min(1, v)) * 100 + "%"; f.style.backgroundColor = eat ? "#00f59e" : v > 0.5 ? "#00f59e" : v > 0.25 ? "#ffb020" : "#ed3b4f"; };
       setHp("hpMf", V.cd ? (eat ? 0 : 1) : hpOf(true)); setHp("hpPf", V.cd ? (eat ? 0 : 1) : hpOf(false));
       $("hpMi").innerHTML = $("hpPi").innerHTML = `<img src="${EMO_SRC[eat ? "trophy" : "heartfire"]}" alt="">`;
@@ -2274,7 +2434,7 @@
     if (V.screen === "after" || V.screen === "pay") {
       const r = RESULTS[V.result] || RESULTS.nopeer;
       const chip = $("chipEl"); chip.classList.toggle("win", !!V.win);
-      setT("chipT", r[0]); setT("chipS", r[1](V.game === "eat"));
+      setT("chipT", r[0]); setT("chipS", r[1](V.game));
       const az = !!V.mascot;
       $("keepBtn").style.display = az ? "none" : "flex";
       setH("keepPrice", GEM + KEEP_COST);
@@ -2414,6 +2574,7 @@
       const gm = buildMascot(320, 5.4, true); gm.canvas.className = "m3dgame"; rc.insertBefore(gm.canvas, $("mascot"));
       let last = performance.now(), eatUntil = 0;
       const az = { on: false, x: 0, y: 0, wx: 0, wy: 0, tgt: null, next: 0, done: new Set(), bump: 0 };
+      const azRunC = document.createElement("canvas"); azRunC.width = azRunC.height = 480; azRunC.id = "azRun"; rc.appendChild(azRunC); const azRunX = azRunC.getContext("2d");
       const azT = document.createElement("div"); azT.id = "azT"; rc.appendChild(azT);
       const resetAz = () => { az.on = false; az.x = az.y = 0; az.tgt = null; az.next = 0; az.done.clear(); g.azSeq = null; azT.innerHTML = ""; };
       // 아주주 칸에도 같은 먹이가 보이고, 아주주가 먹은 건 사라진다
@@ -2434,6 +2595,9 @@
         if (scr === "finding") fm.draw({ t, dt });
         if (rc.classList.contains("mascot") && (scr === "game" || scr === "exit" || scr === "after" || scr === "pay")) {
           const st = { t, dt };
+          const meowNow = g.game === "meow" && g.azRun && (g.phase === "play" || g.phase === "countdown");
+          gm.canvas.style.display = meowNow ? "none" : ""; azT.style.display = meowNow ? "none" : ""; azRunC.style.display = meowNow ? "block" : "none";
+          if (meowNow) { drawRunner(azRunX, 480, g.azRun, now, true); return; }
           const live = g.phase === "play" && g.mascot;
           if (!live) { if (az.on) resetAz(); }
           else if (g.game === "eat") {
@@ -2459,7 +2623,7 @@
             }
             st.px = az.x; st.py = az.y;
             st.eat = now < eatUntil ? 1 : 0; st.bump = az.bump || 0; az.bump = 0;
-          } else {
+          } else if (g.game === "laugh") {
             // 웃음참기: 아주주도 우리와 똑같이 4초마다 필터가 바뀐다
             if (!g.azSeq) g.azSeq = makeSeqs()[1];
             const el = now - g.playAt, step = Math.floor(el / STEP_MS), ramp = Math.min(1, (el % STEP_MS) / 500);
@@ -2529,7 +2693,7 @@
     try { localStorage.setItem("azar.cam", "1"); } catch (e) {}
   });
   on("camLater", () => { UI.camDenied = false; toast("Camera is needed to play"); });
-  on("fewLink", () => { if (!state.landmarker || !state.stream) { toast("Camera is needed to play"); return; } unlockAudio(); UI.few = false; UI.waitSince = 0; startMascotRound(); });
+  on("fewLink", () => { if (!state.landmarker || !state.stream) { toast("Camera is needed to play"); return; } unlockAudio(); UI.few = false; UI.waitSince = 0; startMascotRound(nextGameId()); });
   on("fewBtn", () => {
     if (g.note) { g.note = ""; UI.few = false; UI.waitSince = 0; enterSearching(""); }   // 상대가 나간 뒤 New Match
     else { UI.few = false; UI.waitSince = performance.now(); }                          // 계속 기다리기
