@@ -2616,9 +2616,10 @@
         const world = new THREE.Group(); world.rotation.y = 0.62; scene.add(world);   // 고양이가 원점. 길을 비스듬히 돌려 대각선으로
         const LW = 2.3, LEN = 90;
         const laneTex = mkTex(256, 256, (c, w, h) => { c.fillStyle = "#3a3547"; c.fillRect(0, 0, w, h); for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const o = (y % 2) * 32; c.fillStyle = `hsl(260 ${8 + ((x * 7 + y * 3) % 5)}% ${24 + ((x * 5 + y * 11) % 7)}%)`; c.fillRect(x * 64 + o + 2, y * 64 + 2, 60, 60); } c.fillStyle = "rgba(255,230,150,.55)"; c.fillRect(w / 2 - 3, 8, 6, 40); c.fillRect(w / 2 - 3, 136, 6, 40); }, 1, 20);
-        const lane = new THREE.Mesh(new THREE.PlaneGeometry(LW, LEN), new THREE.MeshStandardMaterial({ map: laneTex, roughness: 0.95 })); lane.rotation.x = -Math.PI / 2; lane.position.set(0, 0, LEN / 2 - 10); world.add(lane);
+        const fixed = [];
+        const lane = new THREE.Mesh(new THREE.PlaneGeometry(LW, LEN), new THREE.MeshStandardMaterial({ map: laneTex, roughness: 0.95 })); lane.rotation.x = -Math.PI / 2; lane.position.set(0, 0, LEN / 2 - 10); world.add(lane); fixed.push(lane);
         const brickTex = mkTex(128, 128, (c, w, h) => { c.fillStyle = "#7a4a52"; c.fillRect(0, 0, w, h); c.fillStyle = "#5a3340"; for (let y = 0; y < 4; y++) for (let x = 0; x < 2; x++) c.fillRect(x * 64 + (y % 2) * 32 + 2, y * 32 + 2, 60, 28); c.fillStyle = "#b08a7a"; c.fillRect(0, 0, w, 3); }, 1, 40);
-        for (const sd of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.55, LEN), new THREE.MeshStandardMaterial({ map: brickTex, roughness: 0.9, transparent: true, opacity: 0.72 })); w.position.set(sd * (LW / 2 + 0.15), 0.275, LEN / 2 - 10); world.add(w); }
+        for (const sd of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.55, LEN), new THREE.MeshStandardMaterial({ map: brickTex, roughness: 0.9, transparent: true, opacity: 0.72 })); w.position.set(sd * (LW / 2 + 0.15), 0.275, LEN / 2 - 10); world.add(w); fixed.push(w); }
         const crateTex = mkTex(128, 128, (c, w, h) => { c.fillStyle = "#c98b55"; c.fillRect(0, 0, w, h); c.strokeStyle = "#7a4a22"; c.lineWidth = 6; c.strokeRect(3, 3, w - 6, h - 6); c.beginPath(); c.moveTo(6, 6); c.lineTo(w - 6, h - 6); c.moveTo(w - 6, 6); c.lineTo(6, h - 6); c.stroke(); c.lineWidth = 3; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(0, (h * k) / 4); c.lineTo(w, (h * k) / 4); c.stroke(); } }, 1, 1);
         const stripeTex = mkTex(128, 64, (c, w, h) => { c.fillStyle = "#f2b630"; c.fillRect(0, 0, w, h); c.fillStyle = "#222"; for (let k = -2; k < 8; k++) { c.beginPath(); c.moveTo(k * 32, h); c.lineTo(k * 32 + 16, h); c.lineTo(k * 32 + 48, 0); c.lineTo(k * 32 + 32, 0); c.fill(); } }, 3, 1);
         const crateM = new THREE.MeshStandardMaterial({ map: crateTex, roughness: 0.8 }), stripeM = new THREE.MeshStandardMaterial({ map: stripeTex, roughness: 0.6 }), steelM = new THREE.MeshStandardMaterial({ color: 0x9a9aa8, roughness: 0.5, metalness: 0.4 });
@@ -2673,7 +2674,7 @@
         world.add(cat);
         let built = null;
         return {
-          canvas,
+          canvas, catOnly: false,   // 에셋 추출용: true면 길/장애물 없이 고양이만 그린다
           // 얼굴 영상 갱신: faceBox = {x,y,w} (0..1, 거울상 comp 좌표) 있으면 그 얼굴을 자르고 없으면 가운데
           setFace(vid, box) {
             if (!withVideo || !vid || !vid.videoWidth) return;
@@ -2686,8 +2687,10 @@
           draw(R, now) {
             if (built !== R.obs) { obsG.forEach((o) => world.remove(o)); obsG.length = 0; R.obs.forEach((t) => { const o = mkObstacle(t); world.add(o); obsG.push(o); }); built = R.obs; }
             laneTex.offset.y = -(R.p * UNIT) / (LEN / 20);
-            R.obs.forEach((t, i) => { const z = (runX(i) - R.p) * UNIT; obsG[i].position.z = z; obsG[i].visible = z > -1.6 && z < 8.5; });
-            goal.position.z = (RUN_GOAL - R.p) * UNIT; goal.visible = goal.position.z < 12 && goal.position.z > -3;
+            if (this._co !== this.catOnly) { this._co = this.catOnly; cam.zoom = this.catOnly ? 1.7 : 1; cam.setViewOffset(size, size, size * 0.06, this.catOnly ? -size * 0.2 : -size * 0.3, size, size); cam.updateProjectionMatrix(); }   // 에셋 추출용 확대
+            fixed.forEach((o) => { o.visible = !this.catOnly; });
+            R.obs.forEach((t, i) => { const z = (runX(i) - R.p) * UNIT; obsG[i].position.z = z; obsG[i].visible = !this.catOnly && z > -1.6 && z < 8.5; });
+            goal.position.z = (RUN_GOAL - R.p) * UNIT; goal.visible = !this.catOnly && goal.position.z < 12 && goal.position.z > -3;
             const sh = R.shape, sq = Math.max(0, sh), sl = Math.max(0, -sh), K = 1.5;
             cat.scale.set((1 + 0.5 * sq) * (1 - 0.6 * sl) * K, (1 - 0.6 * sq) * (1 + 0.14 * sl) * K, K);
             const sw = Math.sin(R.legs) * 0.6; legs[0].rotation.x = sw; legs[3].rotation.x = sw; legs[1].rotation.x = -sw; legs[2].rotation.x = -sw;
@@ -2766,6 +2769,7 @@
         }
       };
       tick();
+      window.__assets = { fm, gm, runMine, runAz };   // 에셋 추출/디버그용
       log("3D 아주주 준비됨");
     } catch (e) { log("3D 아주주를 못 불러와 2D로 대신합니다: " + (e.message || e)); }
   }
