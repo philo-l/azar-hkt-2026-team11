@@ -2029,13 +2029,20 @@
     if (v.ring) audio.osc.frequency.value = v.ring;
   }
   // 브라우저는 사용자가 누르기 전에는 소리를 못 켜게 한다. 준비 버튼을 누를 때 켠다.
-  // Crack Up 배경 소리: 게임(play) 동안만 반복 재생하고 끝나면 멈춘다. 다른 게임에는 틀지 않는다.
-  const bgm = new Audio("assets/laugh_sound.mp3");
-  bgm.loop = true; bgm.volume = 0.4; bgm.preload = "auto";
+  // Crack Up 배경 소리: 게임(play) 시작에 한 번 틀어서 30초 게임과 함께 끝난다(소리 자체가 30초로 다듬어져 있다). 다른 게임에는 틀지 않는다.
+  const bgm = new Audio("assets/laugh_sound_30s.mp3");
+  bgm.loop = false; bgm.volume = 0.4; bgm.preload = "auto";
+  let bgmStarted = false;
   function updateBgm() {
     const want = g.game === "laugh" && g.phase === "play";
-    if (want && bgm.paused) { const pr = bgm.play(); if (pr && pr.catch) pr.catch((e) => log("배경 소리 재생 실패: " + (e.message || e))); }
-    else if (!want && !bgm.paused) { bgm.pause(); bgm.currentTime = 0; }
+    if (want && bgm.paused && !bgmStarted) {   // 한 판에 한 번만 시작한다. 끝까지 재생되면 다시 틀지 않는다.
+      bgmStarted = true;
+      const pr = bgm.play(); if (pr && pr.catch) pr.catch((e) => log("배경 소리 재생 실패: " + (e.message || e)));
+    } else if (!want) {
+      if (!bgm.paused) bgm.pause();
+      if (bgm.currentTime) bgm.currentTime = 0;
+      bgmStarted = false;
+    }
   }
   function unlockAudio() {
     state.audioUnlocked = true;
