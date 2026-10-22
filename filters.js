@@ -16,6 +16,7 @@ export function extraPoints(lm) {
   put("z1", 116); put("z2", 345);                   // 광대뼈
   put("lp1", 61); put("lp2", 291);                  // 입꼬리
   put("nt", 4);                                     // 코끝
+  put("ear1", 234); put("ear2", 454);               // 얼굴 양옆(귀 높이)
   return o;
 }
 
@@ -29,45 +30,62 @@ const bp = (fw, pt, k, s, sy) => [pt[0], pt[1], fw * k, cl(s), cl(sy === undefin
 export const FILTERS = [
   {
     id: "frog", name: "Frog Eyes",
-    // 눈이 가늘게 보이지 않도록 가로보다 세로로 훨씬 크게 키워서 동그랗게 튀어나온 눈으로 만든다.
+    // 눈이 가늘게 보이지 않도록 가로보다 세로로 훨씬 크게 키워서 동그랗게 튀어나온 눈으로 만든다. 입은 콩알만 하게 줄인다.
     warp: (c, L, e) => {
-      const sx = 0.55 * L * (1 - 0.3 * e.bl), sy = 0.97 * L * (1 - 0.3 * e.bl), out = 0.1 * c.fw;
-      return { p: [bp(c.fw, [c.eL[0] - out, c.eL[1] - 0.03 * c.fw], 0.4, sx, sy), bp(c.fw, [c.eR[0] + out, c.eR[1] - 0.03 * c.fw], 0.4, sx, sy)], mk: [c.F[0], c.F[1] - 0.1 * c.fw, c.fw * 1.1, c.fw * 1.4] };
+      const sx = 0.6 * L * (1 - 0.3 * e.bl), sy = 0.97 * L * (1 - 0.3 * e.bl), out = 0.17 * c.fw;
+      return { p: [bp(c.fw, [c.eL[0] - out, c.eL[1] - 0.04 * c.fw], 0.4, sx, sy), bp(c.fw, [c.eR[0] + out, c.eR[1] - 0.04 * c.fw], 0.4, sx, sy), bp(c.fw, c.M, 0.3, -1.6 * L)], mk: [c.F[0], c.F[1] - 0.05 * c.fw, c.fw * 1.3, c.fw * 1.5] };
     }
   },
   {
     id: "cheek", name: "Cheekbone Pop",
-    // 광대 두 곳만 작게 크게 부풀린다. 반경이 크면 가운데 이목구비가 눌리므로 작게 잡는다.
+    // 광대 두 곳만 크게 부풀린다. 반경이 크면 가운데 이목구비가 눌리므로 작게 잡는다.
     warp: (c, L, e) => {
-      const sx = (0.82 + 0.15 * e.sm) * L, sy = 0.7 * L, out = 0.07 * c.fw;
-      return { p: [bp(c.fw, [c.zL[0] - out, c.zL[1] + 0.03 * c.fw], 0.36, sx, sy), bp(c.fw, [c.zR[0] + out, c.zR[1] + 0.03 * c.fw], 0.36, sx, sy)], mk: [c.F[0], c.F[1], c.fw * 1.4, c.fw * 1.4] };
+      const sx = 0.97 * L, sy = 0.8 * L, out = 0.09 * c.fw;
+      return { p: [bp(c.fw, [c.zL[0] - out, c.zL[1] + 0.03 * c.fw], 0.42, sx, sy), bp(c.fw, [c.zR[0] + out, c.zR[1] + 0.03 * c.fw], 0.42, sx, sy)], mk: [c.F[0], c.F[1], c.fw * 1.5, c.fw * 1.4] };
     }
   },
   {
     id: "jaw", name: "Long Jaw",
     warp: (c, L, e) => ({
-      jw: [c.M[0], c.M[1] - 0.04 * c.fw, 2.8 * (0.55 + 0.45 * e.j) * L, c.fw * 1.1],
-      mk: [c.F[0], c.F[1] + 0.9 * c.fw, c.fw * 1.5, c.fw * 2.4]
-    })
-  },
-  {
-    id: "jelly", name: "Jelly Face",
-    warp: (c, L, e, t) => ({
-      p: [bp(c.fw, c.F, 0.8, 0.3 * Math.sin(t * 5.5) * L), bp(c.fw, c.zL, 0.35, 0.3 * Math.sin(t * 7 + 1) * L), bp(c.fw, c.zR, 0.35, 0.3 * Math.sin(t * 7 + 2.4) * L)],
-      jl: [0.014 * L, 38, 7],
-      mk: [c.F[0], c.F[1], c.fw * 1.1, c.fw * 1.4]
+      jw: [c.M[0], c.M[1] - 0.04 * c.fw, 4.0 * (0.6 + 0.4 * e.j) * L, c.fw * 1.1],
+      mk: [c.F[0], c.F[1] + 1.1 * c.fw, c.fw * 1.5, c.fw * 2.8]
     })
   },
   {
     id: "mouth", name: "Mega Mouth",
+    // 입만 얼굴의 절반 가까이 커지고 코는 콩알만 해진다.
     warp: (c, L, e) => ({
-      p: [bp(c.fw, c.M, 0.66, (0.8 + 0.17 * e.j) * L), bp(c.fw, c.eL, 0.24, -1.4 * L), bp(c.fw, c.eR, 0.24, -1.4 * L)],
-      mk: [c.F[0], c.F[1] + 0.2 * c.fw, c.fw * 1.1, c.fw * 1.6]
+      p: [bp(c.fw, c.M, 0.85, (0.88 + 0.09 * e.j) * L), bp(c.fw, c.N, 0.25, -1.8 * L)],
+      mk: [c.F[0], c.F[1] + 0.25 * c.fw, c.fw * 1.3, c.fw * 1.7]
+    })
+  },
+  {
+    id: "longnose", name: "Long Nose",
+    // 코만 아래로 쭉 자란다. 웃을수록 더 길어진다.
+    warp: (c, L, e) => ({
+      p: [bp(c.fw, [c.N[0], c.N[1] - 0.06 * c.fw], 0.55, 0.3 * L, (0.88 + 0.09 * e.sm) * L)],
+      mk: [c.F[0], c.F[1] + 0.15 * c.fw, c.fw * 1.1, c.fw * 1.7]
+    })
+  },
+  {
+    id: "tallhead", name: "Tall Head",
+    // 이마 위로 머리가 쭉 늘어난다.
+    warp: (c, L, e) => ({
+      ju: [c.F[0], c.F[1] - 0.25 * c.fw, 2.6 * (0.7 + 0.3 * e.j) * L, c.fw * 1.1],
+      mk: [c.F[0], c.F[1] - 1.0 * c.fw, c.fw * 1.5, c.fw * 2.6]
+    })
+  },
+  {
+    id: "duck", name: "Duck Lips",
+    // 입은 가로로 오므려 쭉 내민 오리 입이 되고 입 위아래만 부푼다.
+    warp: (c, L, e) => ({
+      p: [bp(c.fw, c.M, 0.5, -1.5 * L, (0.85 + 0.1 * e.j) * L)],
+      mk: [c.F[0], c.F[1] + 0.25 * c.fw, c.fw * 1.2, c.fw * 1.5]
     })
   },
   {
     id: "confetti", name: "Confetti Burp", particles: "confetti",
-    warp: (c, L, e) => ({ p: [bp(c.fw, c.M, 0.42, (0.5 + 0.4 * e.j) * L)] })
+    warp: (c, L, e) => ({ p: [bp(c.fw, c.M, 0.55, (0.6 + 0.35 * e.j) * L)] })
   },
   {
     id: "bighead", name: "Big Head",
@@ -78,43 +96,19 @@ export const FILTERS = [
     }
   },
   {
-    id: "longnose", name: "Long Nose",
-    // 코가 아래로 쭉 자란다. 웃을수록 더 길어진다.
-    warp: (c, L, e) => ({
-      p: [bp(c.fw, [c.N[0], c.N[1] - 0.04 * c.fw], 0.42, 0.25 * L, (0.8 + 0.17 * e.sm) * L)],
-      mk: [c.F[0], c.F[1] + 0.1 * c.fw, c.fw * 1.1, c.fw * 1.5]
-    })
-  },
-  {
-    id: "tallhead", name: "Tall Head",
-    // 이마 위로 머리가 쭉 늘어난다.
-    warp: (c, L, e) => ({
-      ju: [c.F[0], c.F[1] - 0.25 * c.fw, 2.4 * (0.7 + 0.3 * e.j) * L, c.fw * 1.1],
-      mk: [c.F[0], c.F[1] - 0.9 * c.fw, c.fw * 1.5, c.fw * 2.4]
-    })
-  },
-  {
-    id: "boing", name: "Boing Face",
-    // 만화처럼 납작해졌다가 길어졌다가를 반복한다. 비틀지 않아서 이목구비가 안 뭉개진다.
-    warp: (c, L, e, t) => {
-      const a = 0.42 * Math.sin(t * 6.2) * L;
-      return { sc: [1 + a, 1 - 0.8 * a], sp: [c.F[0], c.F[1] + 0.15 * c.fw], sr: c.fw * 1.5, mk: [c.F[0], c.F[1], c.fw * 1.3, c.fw * 1.6] };
-    }
-  },
-  {
     id: "twin", name: "Twin Face",
     // 얼굴 한쪽 절반을 거울처럼 다른 쪽에 붙인다.
     warp: (c, L) => ({ mr: [c.F[0], L > 0.05 ? 1 : 0], mk: [c.F[0], c.F[1], c.fw * 4, c.fw * 4] })   // 가운데 선 기준 화면 전체를 대칭으로
   },
   {
     id: "tears", name: "Tear Fountain", particles: "tears",
-    warp: (c, L, e) => ({ p: [bp(c.fw, c.eL, 0.3, (0.45 + 0.25 * e.bl) * L), bp(c.fw, c.eR, 0.3, (0.45 + 0.25 * e.bl) * L)] })
+    warp: (c, L, e) => ({ p: [bp(c.fw, c.eL, 0.36, (0.6 + 0.3 * e.bl) * L), bp(c.fw, c.eR, 0.36, (0.6 + 0.3 * e.bl) * L)] })
   },
   {
     id: "hearts", name: "Heart Burst", particles: "hearts",
     warp: (c, L, e) => {
-      const s = (0.5 + 0.3 * e.sm) * L;
-      return { p: [bp(c.fw, c.zL, 0.34, s, s * 0.7), bp(c.fw, c.zR, 0.34, s, s * 0.7)] };
+      const s = (0.7 + 0.25 * e.sm) * L;
+      return { p: [bp(c.fw, c.zL, 0.4, s, s * 0.8), bp(c.fw, c.zR, 0.4, s, s * 0.8)] };
     }
   }
 ];
@@ -205,8 +199,9 @@ export function createFilters(CW, log = () => {}) {
     const [eL, eR] = srt(pt("ir1", le), pt("ir2", re));
     const [zL, zR] = srt(pt("z1", lc), pt("z2", rc));
     const N = P(v.nx, v.ny);
+    const [aL, aR] = srt(pt("ear1", lc), pt("ear2", rc));
     const ewRaw = has("eo1") ? Math.hypot((v.eo1x - v.ei1x) * vw, (v.eo1y - v.ei1y) * vh) / side : v.fw * vw / side * 0.22;
-    return { F, le, re, lc, rc, M, N: pt("nt", N), H: P(v.chx, v.chy), T: P(v.fhx, v.fhy), fw: v.fw * vw / side, eL, eR, zL, zR, ew: ewRaw / 2 };
+    return { F, le, re, lc, rc, M, N: pt("nt", N), H: P(v.chx, v.chy), T: P(v.fhx, v.fhy), fw: v.fw * vw / side, eL, eR, zL, zR, aL, aR, ew: ewRaw / 2 };
   }
 
   // 변형 단계: 영상을 필터 공간 캔버스(glc)에 그린다. 필터가 없으면 거울 모양 정사각형 영상만.
