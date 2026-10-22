@@ -1118,6 +1118,7 @@
   state.dialTry = 0;
 
   function claimSlot(i = 0) {
+    if (state.stale) return;   // 예전 버전이면 새로고침하기 전까지 자리를 잡지 않는다
     if (typeof Peer === "undefined") {
       chip("chipPeer", "bad", "라이브러리 로드 실패");
       $("myId").textContent = "PeerJS를 불러오지 못했습니다.";
@@ -1204,6 +1205,10 @@
       chip("chipLink", "ok", "연결됨");
       log("데이터 연결 열림");
       if (g.pickGame) sendMsg({ t: "pick", game: g.pickGame });
+      // 버전 확인: 서로 같은 버전인지 알려준다. 4초 안에 상대 신호가 없으면 예전 버전으로 본다.
+      g.peerVer = undefined; clearTimeout(g.helloTimer);
+      sendMsg({ t: "hello", ver: state.ver || "?" });
+      g.helloTimer = setTimeout(() => { if (g.peerVer === undefined) { g.verMismatch = true; if (!state.stale) toast("Your partner may be on an older version. Ask them to refresh.", 5000); } }, 4000);
       clearInterval(pingTimer); clearInterval(valuesTimer);
       pingTimer = setInterval(() => { if (c.open) c.send({ t: "ping", ts: performance.now() }); }, 2000);
       valuesTimer = setInterval(() => {
@@ -1325,6 +1330,7 @@
   const nextGameId = () => g.pickGame ? g.pickGame : g.lastGame ? GAMES[(GAMES.indexOf(g.lastGame) + 1) % GAMES.length] : GAMES[Math.floor(Math.random() * GAMES.length)];
   const higherWins = (game) => game === "eat" || game === "meow";
   function checkStart() {
+    if (g.verMismatch && g.myReady && g.peerReady) { toast("You and your partner are on different versions. Refresh both and try again.", 4000); return; }
     if (g.myReady && g.peerReady && isHost() && !playing()) {
       // 두 사람에게 서로 다른 필터를 나눠준다 (호스트가 정해서 알려준다)
       const [a, b] = makeSeqs();
@@ -1370,7 +1376,11 @@
     if (g.solo) { finish("survive"); return; }
     sendMsg({ t: "final", gauge: g.score });
     tryFinal();
-    g.finalTimer = setTimeout(() => { if (g.phase === "play") finish("nopeer"); }, 3000);
+    if (g.phase !== "play") return;
+    // Squash & Squeak: 장애물을 먼저 다 넘으면 상대가 아직 달려도 이긴다(상대가 나중에 끝나도 보너스가 더 작다). 같은 순간에 끝냈을 수 있어 0.7초만 기다려 비교한다.
+    if (g.game === "meow" && g.run && g.run.done) { g.finalTimer = setTimeout(() => { if (g.phase === "play") finish("win"); }, 700); return; }
+    // 그 외에는 상대의 결과를 기다린다. 상대의 30초가 끝나는 시점 + 4초가 지나도 안 오면 상대가 나간 것으로 본다.
+    g.finalTimer = setTimeout(() => { if (g.phase === "play") finish("nopeer"); }, Math.max(3000, g.playAt + GAME_MS + 4000 - performance.now()));
   }
   function tryFinal() {
     if (g.phase !== "play" || !g.timeUpDone || g.peerFinal == null) return;
@@ -1446,8 +1456,9 @@
 
   function onGameMsg(d) {
     switch (d.t) {
+      case "hello": g.peerVer = d.ver || "?"; clearTimeout(g.helloTimer); evalVer(); return true;
       case "ready": g.peerReady = true; checkStart(); return true;
-      case "go": if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0], d.game || "laugh", d.seed || 1); return true;
+      case "go": if (g.verMismatch) return true; if (!playing() && d.seq) beginRound(false, d.seq[1], d.seq[0], d.game || "laugh", d.seed || 1); return true;
       case "score": g.peerScore = d.s; return true;
       case "pick": g.pickGame = d.game || null; return true;
       case "rstart": g.peerStart = true; return true;
@@ -1731,7 +1742,7 @@
       return;
     }
     if (g.phase === "play") {
-      const el = now - g.playAt, dt = now - g.lastT; g.lastT = now;
+      const el = now - g.playAt, dt = Math.min(250, now - g.lastT); g.lastT = now;   // 화면이 멈췄다 돌아와도 한 번에 큰 점수가 들어가지 않게 0.25초까지만 센다
       if (g.game === "eat") { playEat(now, el); return; }
       if (g.game === "meow") { playMeow(now, el); return; }
       if (g.myKO) { setMsg("KO!", "에너지가 다 닳았어요..."); return; }
@@ -2832,8 +2843,36 @@
   if (/[?&]autocam/.test(location.search) || localStorage.getItem("azar.cam") === "1") { UI.welcomed = true; startCamera(); }
 
   // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
-  window.__azar = { avatar, g, state, bgm, UI, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
-  if (!/nopeer/.test(location.search)) claimSlot(0);
+  window.__azar = { avatar, g, state, bgm, UI, onTimeUp, onGameMsg, evalVer, checkVersion, showStale, checkStart, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
+  // ---------- 버전 확인 ----------
+  // 이 페이지의 파일(index.html)을 캐시된 복사본과 서버 최신본으로 각각 받아서 비교한다. 다르면 예전 버전이라 새로고침을 안내한다.
+  const strHash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+  state.ver = "?";
+  function evalVer() {
+    if (g.peerVer === undefined) return;
+    const bad = state.ver !== "?" && g.peerVer !== "?" && g.peerVer !== state.ver;
+    g.verMismatch = bad;
+    if (bad && !state.stale) toast("Your partner is on a different version. Ask them to refresh.", 5000);
+  }
+  function showStale() {
+    state.stale = true;
+    $("staleOv").style.display = "flex";
+    try { if (state.peer) state.peer.destroy(); } catch (e) {}
+    log("예전 버전입니다. 새로고침이 필요합니다.");
+  }
+  $("staleBtn").addEventListener("click", () => { location.replace(location.pathname + "?v=" + Date.now()); });
+  async function checkVersion() {
+    try {
+      const url = location.href.split("#")[0].split("?")[0];
+      const mine = await (await fetch(url, { cache: "force-cache" })).text();
+      state.ver = strHash(mine);
+      if (linked()) sendMsg({ t: "hello", ver: state.ver });
+      evalVer();
+      const fresh = await (await fetch(url + "?nc=" + Date.now(), { cache: "no-store" })).text();
+      if (strHash(fresh) !== state.ver) showStale();
+    } catch (e) { log("버전 확인 실패: " + (e.message || e)); }
+  }
+  if (!/nopeer/.test(location.search)) { claimSlot(0); checkVersion(); }
   // 폰이 다시 앞으로 오거나 네트워크가 돌아오면, 서버 연결이 끊겨 있고 상대와도 안 이어져 있을 때 자리를 새로 잡는다.
   const reclaim = () => { if (/nopeer/.test(location.search) || (state.data && state.data.open)) return; if (!state.peer || state.peer.disconnected || state.peer.destroyed) claimSlot(0); };
   document.addEventListener("visibilitychange", () => { if (!document.hidden) reclaim(); });
@@ -2842,5 +2881,10 @@
   addEventListener("online", reclaim);
   setInterval(reclaim, 7000);
 </script>
+<div id="staleOv" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.9);color:#fff;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif">
+  <div style="max-width:320px"><div style="font-size:22px;font-weight:800;margin-bottom:8px">New version available</div>
+  <div style="font-size:14px;line-height:1.5;color:#ccc;margin-bottom:18px">This page is out of date. Refresh to keep playing with your partner.</div>
+  <button id="staleBtn" style="height:52px;padding:0 28px;border:0;border-radius:360px;background:#00F69D;color:#06231a;font-size:16px;font-weight:800;cursor:pointer">Refresh</button></div>
+</div>
 </body>
 </html>
