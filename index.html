@@ -1701,6 +1701,7 @@
   let lastUi = 0;
   function gameTick() {
     const now = performance.now();
+    updateBgm();
     if (now - lastUi > 250) { lastUi = now; ui(); }
     if (g.phase === "searching") { setMsg("Finding someone new…", g.note); if (now >= g.searchEnd) { state.matchMode = null; state.dialAt = 0; g.phase = "idle"; g.opp = null; g.note = ""; chip("chipLink", "busy", "상대 기다리는 중"); } return; }
     if (g.phase === "moved") { setMsg("Your partner moved on", ""); if (now >= g.movedEnd) enterSearching(""); return; }
@@ -2028,8 +2029,18 @@
     if (v.ring) audio.osc.frequency.value = v.ring;
   }
   // 브라우저는 사용자가 누르기 전에는 소리를 못 켜게 한다. 준비 버튼을 누를 때 켠다.
+  // Crack Up 배경 소리: 게임(play) 동안만 반복 재생하고 끝나면 멈춘다. 다른 게임에는 틀지 않는다.
+  const bgm = new Audio("assets/laugh_sound.mp3");
+  bgm.loop = true; bgm.volume = 0.4; bgm.preload = "auto";
+  function updateBgm() {
+    const want = g.game === "laugh" && g.phase === "play";
+    if (want && bgm.paused) { const pr = bgm.play(); if (pr && pr.catch) pr.catch((e) => log("배경 소리 재생 실패: " + (e.message || e))); }
+    else if (!want && !bgm.paused) { bgm.pause(); bgm.currentTime = 0; }
+  }
   function unlockAudio() {
     state.audioUnlocked = true;
+    // 모바일은 누르는 순간에만 소리 재생을 허락하므로 한 번 틀었다 멈춰서 허락을 받아둔다.
+    try { bgm.muted = true; const pr = bgm.play(); if (pr && pr.then) pr.then(() => { bgm.pause(); bgm.currentTime = 0; bgm.muted = false; }).catch(() => { bgm.muted = false; }); } catch (e) { bgm.muted = false; }
     if (audio.ctx && audio.ctx.state !== "running") audio.ctx.resume();
     const rv = $("remoteVideo");
     rv.muted = false;
@@ -2814,7 +2825,7 @@
   if (/[?&]autocam/.test(location.search) || localStorage.getItem("azar.cam") === "1") { UI.welcomed = true; startCamera(); }
 
   // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
-  window.__azar = { avatar, g, state, UI, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
+  window.__azar = { avatar, g, state, bgm, UI, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
   if (!/nopeer/.test(location.search)) claimSlot(0);
   // 폰이 다시 앞으로 오거나 네트워크가 돌아오면, 서버 연결이 끊겨 있고 상대와도 안 이어져 있을 때 자리를 새로 잡는다.
   const reclaim = () => { if (/nopeer/.test(location.search) || (state.data && state.data.open)) return; if (!state.peer || state.peer.disconnected || state.peer.destroyed) claimSlot(0); };
