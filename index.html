@@ -600,7 +600,7 @@
         <div class="step" style="top:540px"><i>1</i><b>Match</b><span>Pick a player who is ready too</span></div>
         <div class="step" style="top:596px"><i>2</i><b>Play</b><span>30-sec face game, camera on</span></div>
         <div class="step" style="top:652px"><i>3</i><b>Decide</b><span>Keep Talking or New Match</span></div>
-        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t23</i></div>
+        <div class="bottombtns"><button class="btn" id="welTry"><svg class="ico"><use href="#ic-video"/></svg>Get started</button><i style="position:absolute;left:0;width:100%;bottom:4px;text-align:center;font:9px/1 sans-serif;color:#444;font-style:normal">build t24</i></div>
       </div>
 
       <!-- 2. 카메라와 마이크 -->
@@ -1390,7 +1390,7 @@
     g.phase = "reaction"; state.filterStage = -1; state.eatTargets = []; setVoice(null); state.voiceFor = null;
     clearFx();
     g.result = r; g.won = r === "win" || r === "ko_win";
-    if (g.won && !g.rewarded && !(g.solo && !g.mascot)) { g.rewarded = true; addGems(3); }   // 이기면 3젬
+    if (g.won && !g.rewarded && !g.solo) { g.rewarded = true; addGems(3); }   // 사람 매치에서 이기면 3젬 (아주주 판은 보상 없음)
     g.resultMsg = (g.game === "meow" && RESULT_MEOW[r]) || (g.game === "eat" && RESULT_EAT[r]) || RESULT[r];
     g.resultSub = `${g.game === "meow" ? "달린 거리" : g.game === "eat" ? "먹은 점수" : "내 웃음 점수"} ${fmt(g.score, 0)}` + ((g.solo && !g.mascot) || g.myFinal == null || r === "nopeer" ? "" : ` · 상대 ${fmt(g.peerScore, 0)}`);
     setBar(1);
@@ -2164,7 +2164,7 @@
     phone.style.height = ph + "px"; phone.style.setProperty("--dy", dy + "px");
     phone.style.setProperty("--k", String((240 + neg / 2) / 240)); phone.style.setProperty("--sg", (320 + neg / 2) + "px"); phone.style.setProperty("--sr", (280 + neg / 2) + "px"); phone.style.setProperty("--kh", String((300 + neg) / 300));
     phone.style.transform = `scale(${s})`;
-    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t23  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
+    if ($("sizeDbg").style.display !== "none") $("sizeDbg").textContent = `build t24  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}\nscreen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}\nprobes 100%/vh/dvh/lvh ${pr.join("/")}  vv ${window.visualViewport ? Math.round(visualViewport.height) : "-"}\nstandalone ${standalone}  dpr ${devicePixelRatio}\nvh ${Math.round(vh)}  scale ${s.toFixed(3)}  phoneH ${Math.round(ph)}`;
   }
   { let taps = 0, tt = 0; $("sizeHit").addEventListener("click", () => { const n = performance.now(); taps = n - tt < 700 ? taps + 1 : 1; tt = n; if (taps >= 5) { taps = 0; const d = $("sizeDbg"); d.style.display = d.style.display === "none" ? "block" : "none"; fit(); } }); }
   addEventListener("resize", fit); if (window.visualViewport) visualViewport.addEventListener("resize", fit); fit();
@@ -2252,14 +2252,14 @@
     switch (g.phase) {
       case "searching": { const s = Math.max(1, Math.ceil((g.searchEnd - now) / 1000)); return { screen: "finding", variant: "finding", pill: "Matching…", title: "Finding a player..." }; }
       case "moved": return { screen: "finding", variant: "finding", pill: "Looking for a partner…", toast: PARTNER + " moved on" };
-      case "rules": return { screen: UI.sheet === "none" ? "ready" : "rules", pr: 1, mr: 1, game: g.game };
+      case "rules": return { screen: UI.sheet === "none" ? "ready" : "rules", pr: 1, mr: 1, game: g.game, mascot };
       case "countdown": case "play": {
         const el = now - g.playAt;
         return { screen: UI.exit ? "exit" : "game", mascot, cd: g.phase === "countdown", count: Math.max(1, Math.ceil((g.playAt - now) / 1000)), game: g.game, play: g.phase === "play", el };
       }
       case "reaction": {
         const r = RESULTS[g.result] || RESULTS.nopeer;
-        return { screen: UI.sheet === "pay" || UI.sheet === "nogems" ? "pay" : "after", mascot, result: g.result, win: r[2] && !(g.solo && !g.mascot), game: g.game, sheetKind: UI.sheet };
+        return { screen: UI.sheet === "pay" || UI.sheet === "nogems" ? "pay" : "after", mascot, result: g.result, win: r[2] && !g.solo, game: g.game, sheetKind: UI.sheet };
       }
       case "chat": return { screen: "chat" };
       case "idle":
@@ -2359,6 +2359,7 @@
       const f = V.startFrac == null ? 1 : Math.max(0, Math.min(1, V.startFrac || 0));
       $("ringStart").style.setProperty("--p", f * 360 + "deg");
       $("ringStart").style.display = UI.dbg ? "" : "none";
+      { const rw = document.querySelector("#s-rules .reward"); if (rw) rw.style.display = V.mascot ? "none" : ""; }   // 아주주 판은 이겨도 젬 없음
       setT("startTxt", UI.started ? "Waiting for " + PARTNER + "…" : "Start");
       $("startBtn2").classList.toggle("dis", UI.started);
     }
