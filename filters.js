@@ -108,9 +108,10 @@ export const FILTERS = [
   }
 ];
 
-export function createFilters(CW, log = () => {}) {
+export function createFilters(CW, log = () => {}, scale = 1) {
+  // CW는 좌표 기준 크기(논리 픽셀), scale은 실제 그리는 해상도 배율이다(데모 영상 저장용으로 크게 그릴 때 2).
   const glc = document.createElement("canvas");
-  glc.width = CW; glc.height = CW;
+  glc.width = CW * scale; glc.height = CW * scale;
   const gl = glc.getContext("webgl", { preserveDrawingBuffer: true });
   let GU = null;
   if (gl) {
@@ -202,7 +203,7 @@ export function createFilters(CW, log = () => {}) {
   // 변형 단계: 영상을 필터 공간 캔버스(glc)에 그린다. 필터가 없으면 거울 모양 정사각형 영상만.
   function render(src, c, filterId, lvl, e, t) {
     const { w: vw, h: vh } = dimOf(src), side = Math.min(vw, vh);
-    gl.viewport(0, 0, CW, CW);
+    gl.viewport(0, 0, CW * scale, CW * scale);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     gl.uniform2f(GU.crop, side / vw, side / vh);
     gl.uniform2f(GU.off, (vw - side) / 2 / vw, (vh - side) / 2 / vh);

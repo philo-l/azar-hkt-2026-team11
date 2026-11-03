@@ -900,7 +900,7 @@
       return;
     }
     try {
-      const vc = { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } };
+      const vc = REC ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } };   // 영상 저장은 고화질로
       try {
         state.stream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
       } catch (e1) {
@@ -1261,7 +1261,11 @@
   const STEP_MS = 4000, SMILE_DEAD = 0.12, SCORE_K = 100, SCORE_TIE = 2, HP_MAX = 200;  // 웃음 점수가 HP_MAX가 되면 에너지가 다 닳아서 바로 진다
   const g = { phase: "idle", solo: false, myReady: false, peerReady: false, note: "" };
   const comp = $("comp"), cctx = comp.getContext("2d"), CW = 480;
-  comp.width = CW; comp.height = CW;
+  // 데모 영상 저장(PC 웹에서만): 게임 화면은 그대로 두고, 게임 중 내 칸을 2배 해상도로 그려서 세로(3:4)로 잘라 저장한다. 끄려면 주소 끝에 ?norec, 폰에서 켜려면 ?rec
+  const IS_DESKTOP = matchMedia("(pointer: fine)").matches && !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const REC = (IS_DESKTOP && !/[?&]norec\b/.test(location.search)) || /[?&]rec\b/.test(location.search);
+  const K = REC ? 2 : 1;
+  comp.width = CW * K; comp.height = CW * K;
   // 상대에게는 필터가 입혀진 이 캔버스 영상을 보낸다.
   // 상대에게 가는 영상은 별도 캔버스. 둘 다 준비해서 게임이 시작되기 전에는 검은 화면만 보낸다(동의 구조).
   const outc = document.createElement("canvas");
@@ -1713,6 +1717,7 @@
   function gameTick() {
     const now = performance.now();
     updateBgm();
+    updateRec();
     if (now - lastUi > 250) { lastUi = now; ui(); }
     if (g.phase === "searching") { setMsg("Finding someone new…", g.note); if (now >= g.searchEnd) { state.matchMode = null; state.dialAt = 0; g.phase = "idle"; g.opp = null; g.note = ""; chip("chipLink", "busy", "상대 기다리는 중"); } return; }
     if (g.phase === "moved") { setMsg("Your partner moved on", ""); if (now >= g.movedEnd) enterSearching(""); return; }
@@ -2067,13 +2072,14 @@
 
   // ---------- 필터: filters.js (부위별 변형, 표정 반응, 색종이) ----------
   // 3~4초마다 필터가 바뀌고 표정(입 벌림, 미소, 깜빡임)에 따라 변형이 커진다. 변형은 얼굴 타원 안쪽에서만 적용되어 배경은 그대로다.
-  const fxEngine = createFilters(CW, log);
+  const fxEngine = createFilters(CW, log, K);
   const toComp = (v, vid) => fxEngine.toComp(v, vid);
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   const exprOf = (v) => (v ? { j: clamp01(v.jaw * 1.5), sm: clamp01(v.smile * 1.5), bl: clamp01(v.blink) } : { j: 0, sm: 0, bl: 0 });
 
   // 카메라 영상을 정사각형으로 잘라 거울 모양으로 그리고 필터를 입힌다. 이 캔버스가 상대에게 간다.
   function drawComp() {
+    cctx.setTransform(K, 0, 0, K, 0, 0);   // 그리는 코드는 모두 480 기준 좌표로 쓰고, 실제 해상도는 K배
     const vid = $("localVideo");
     if (vid.videoWidth) {
       const c = state.values && state.filterStage >= 0 ? toComp(state.values, vid) : null;
@@ -2081,7 +2087,7 @@
         const tSec = performance.now() / 1000, ex = exprOf(state.values);
         fxEngine.render(vid, c, state.filterId, state.filterLvl || 0, ex, tSec);
         const sh = state.fx.shake;
-        cctx.drawImage(fxEngine.canvas, (Math.random() - 0.5) * sh * 24, (Math.random() - 0.5) * sh * 24);
+        cctx.drawImage(fxEngine.canvas, (Math.random() - 0.5) * sh * 24, (Math.random() - 0.5) * sh * 24, CW, CW);
         if (c) fxEngine.overlay(cctx, c, state.filterId, state.filterLvl || 0, ex, tSec);
         state.fx.shake = sh < 0.03 ? 0 : sh * 0.86;
       } else {
@@ -2096,9 +2102,77 @@
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
     octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
-    if (state.live) octx.drawImage(comp, 0, 0);
+    if (state.live) octx.drawImage(comp, 0, 0, CW, CW);
+    recFrame();
     requestAnimationFrame(drawComp);
   }
+  // ---------- 데모 영상 저장 (PC 웹 전용) ----------
+  // 게임(play) 동안만 녹화하고, 끝나면 자동으로 내려받는다. 내 영상은 2배 해상도로 그린 화면(필터, 이펙트, 게임 그래픽 포함, 이름과 국기 같은 앱 화면은 제외)의 가운데를 3:4 세로로 자른 것이다.
+  // 상대 영상은 받은 영상(정방형 480)에서 같은 비율로 잘라서 저장한다. 상대 컴퓨터에서 저장한 파일이 화질이 더 좋다.
+  const REC_W = Math.round(CW * K * 0.75), REC_H = CW * K;
+  const recMe = document.createElement("canvas"), recPt = document.createElement("canvas");
+  recMe.width = recPt.width = REC_W; recMe.height = recPt.height = REC_H;
+  const rcMe = recMe.getContext("2d"), rcPt = recPt.getContext("2d");
+  rcPt.imageSmoothingQuality = "high";
+  const recS = { on: false, items: [] };
+  function recMime() {
+    if (typeof MediaRecorder === "undefined") return "";
+    for (const t of ["video/mp4;codecs=avc1.42E01E", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
+    return "";
+  }
+  function recStart() {
+    if (recS.on) return;
+    const mime = recMime(); if (!mime) { log("이 브라우저는 영상 저장을 지원하지 않습니다."); return; }
+    recS.on = true; recS.t0 = performance.now(); recS.game = g.game; recS.mime = mime; recS.items = [];
+    recS.partner = !g.solo && !g.mascot && !!state.remoteStream;
+    const mk = (canvas, tag) => {
+      const chunks = [], mr = new MediaRecorder(canvas.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8e6 });
+      mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      const done = new Promise((res) => { mr.onstop = () => res(new Blob(chunks, { type: mime.split(";")[0] })); });
+      mr.start(1000);
+      return { mr, tag, done };
+    };
+    recS.items.push(mk(recMe, "me"));
+    if (recS.partner) recS.items.push(mk(recPt, "partner"));
+    log("영상 저장 시작");
+  }
+  function saveBlob(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 5000);
+  }
+  async function recStop() {
+    if (!recS.on) return;
+    recS.on = false;
+    const items = recS.items, dur = performance.now() - recS.t0, ext = recS.mime.includes("mp4") ? "mp4" : "webm";
+    recS.items = [];
+    items.forEach((it) => { try { it.mr.stop(); } catch (e) {} });
+    if (dur < 1500) return;   // 중간에 바로 끝난 판은 저장하지 않는다
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const gname = ({ laugh: "crack-up", eat: "yum-or-yuck", meow: "squash-and-squeak" })[recS.game] || recS.game;
+    for (const it of items) {
+      const blob = await it.done;
+      saveBlob(blob, `azar_${gname}_${it.tag}_${stamp}.${ext}`);
+      log(`영상 저장: ${it.tag} (${(blob.size / 1e6).toFixed(1)}MB)`);
+      await new Promise((r) => setTimeout(r, 700));
+    }
+  }
+  function recFrame() {
+    if (!recS.on) return;
+    rcMe.drawImage(comp, (comp.width - REC_W) / 2, 0, REC_W, REC_H, 0, 0, REC_W, REC_H);
+    if (recS.partner) {
+      const rv = $("remoteVideo");
+      if (rv.videoWidth) { const sw = rv.videoWidth * 0.75; rcPt.drawImage(rv, (rv.videoWidth - sw) / 2, 0, sw, rv.videoHeight, 0, 0, REC_W, REC_H); }
+    }
+  }
+  function updateRec() {
+    if (!REC) return;
+    const want = g.phase === "play";
+    if (want && !recS.on) recStart();
+    else if (!want && recS.on) recStop();
+  }
+
   drawComp();
 
   // ---------- 링크, 보고서 ----------
@@ -2843,7 +2917,7 @@
   if (/[?&]autocam/.test(location.search) || localStorage.getItem("azar.cam") === "1") { UI.welcomed = true; startCamera(); }
 
   // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
-  window.__azar = { avatar, g, state, bgm, UI, onTimeUp, onGameMsg, evalVer, checkVersion, showStale, checkStart, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
+  window.__azar = { avatar, g, state, bgm, UI, recS, REC, REC_W, REC_H, onTimeUp, onGameMsg, evalVer, checkVersion, showStale, checkStart, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
   // ---------- 버전 확인 ----------
   // 이 페이지의 파일(index.html)을 캐시된 복사본과 서버 최신본으로 각각 받아서 비교한다. 다르면 예전 버전이라 새로고침을 안내한다.
   const strHash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
