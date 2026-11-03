@@ -1248,6 +1248,7 @@
       rv.srcObject = s; attachRemoteAnalyser(s);
       rv.muted = !state.audioUnlocked;
       rv.play().catch((e) => log("상대 영상 재생 실패: " + e.message));
+      if (REC) { try { for (const sd of call.peerConnection.getSenders()) { if (sd.track && sd.track.kind === "video") { const pr = sd.getParameters(); if (!pr.encodings || !pr.encodings.length) pr.encodings = [{}]; pr.encodings[0].maxBitrate = 3000000; sd.setParameters(pr); } } } catch (e) {} }
       $("remoteCell").classList.add("has-stream");
       state.remoteStream = true;
       log("상대 영상 수신");
@@ -1269,7 +1270,8 @@
   // 상대에게는 필터가 입혀진 이 캔버스 영상을 보낸다.
   // 상대에게 가는 영상은 별도 캔버스. 둘 다 준비해서 게임이 시작되기 전에는 검은 화면만 보낸다(동의 구조).
   const outc = document.createElement("canvas");
-  outc.width = CW; outc.height = CW;
+  const OUTW = REC ? 720 : CW;   // PC에서는 상대에게 720으로 보내서 상대가 영상을 저장할 때 더 선명하다(폰은 그대로 480)
+  outc.width = OUTW; outc.height = OUTW;
   const octx = outc.getContext("2d");
   state.live = false;
   state.out = outc.captureStream(30);
@@ -2101,8 +2103,8 @@
       if (g.game === "meow" && g.run && (g.phase === "countdown" || g.phase === "play")) { if (runMine) { cctx.fillStyle = "rgba(10,8,20,.28)"; cctx.fillRect(0, 0, CW, CW); { const fc = state.values && vid.videoWidth ? toComp(state.values, vid) : null; runMine.setFace(vid, fc ? { x: fc.F[0], y: fc.F[1], w: fc.fw } : null); } runMine.draw(g.run, performance.now()); cctx.drawImage(runMine.canvas, 0, 0, CW, CW); drawVoicePill(); } else drawRunner(cctx, CW, g.run, performance.now(), false); }
       drawDamage(c || (state.values ? toComp(state.values, vid) : null));
     }
-    octx.fillStyle = "#000"; octx.fillRect(0, 0, CW, CW);
-    if (state.live) octx.drawImage(comp, 0, 0, CW, CW);
+    octx.fillStyle = "#000"; octx.fillRect(0, 0, OUTW, OUTW);
+    if (state.live) octx.drawImage(comp, 0, 0, OUTW, OUTW);
     recFrame();
     requestAnimationFrame(drawComp);
   }
@@ -2115,26 +2117,33 @@
   const rcMe = recMe.getContext("2d"), rcPt = recPt.getContext("2d");
   rcPt.imageSmoothingQuality = "high";
   const recS = { on: false, items: [] };
-  function recMime() {
+  function recMime(withAudio) {
     if (typeof MediaRecorder === "undefined") return "";
-    for (const t of ["video/mp4;codecs=avc1.42E01E", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
+    const list = withAudio
+      ? ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1.42E01E,opus", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+      : ["video/mp4;codecs=avc1.42E01E", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    for (const t of list) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
     return "";
   }
   function recStart() {
     if (recS.on) return;
-    const mime = recMime(); if (!mime) { log("이 브라우저는 영상 저장을 지원하지 않습니다."); return; }
-    recS.on = true; recS.t0 = performance.now(); recS.game = g.game; recS.mime = mime; recS.items = [];
     recS.partner = !g.solo && !g.mascot && !!state.remoteStream;
-    const mk = (canvas, tag) => {
-      const chunks = [], mr = new MediaRecorder(canvas.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8e6 });
+    // 소리: 내 파일에는 상대에게 들리는 내 목소리(목소리 변조 적용)를, 상대 파일에는 상대의 목소리를 넣는다. 배경음악과 효과음은 넣지 않는다.
+    const myA = audio && audio.dest ? audio.dest.stream.getAudioTracks() : [];
+    const rvStream = $("remoteVideo").srcObject, ptA = rvStream && rvStream.getAudioTracks ? rvStream.getAudioTracks() : [];
+    const mime = recMime(true) || recMime(false); if (!mime) { log("이 브라우저는 영상 저장을 지원하지 않습니다."); return; }
+    recS.on = true; recS.t0 = performance.now(); recS.game = g.game; recS.mime = mime; recS.items = [];
+    const mk = (canvas, tag, tracks) => {
+      const chunks = [], stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...tracks]);
+      const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6, audioBitsPerSecond: 128000 });
       mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       const done = new Promise((res) => { mr.onstop = () => res(new Blob(chunks, { type: mime.split(";")[0] })); });
       mr.start(1000);
-      return { mr, tag, done };
+      return { mr, tag, done, audio: tracks.length };
     };
-    recS.items.push(mk(recMe, "me"));
-    if (recS.partner) recS.items.push(mk(recPt, "partner"));
-    log("영상 저장 시작");
+    recS.items.push(mk(recMe, "me", myA));
+    if (recS.partner) recS.items.push(mk(recPt, "partner", ptA));
+    log("영상 저장 시작" + (mime.includes("mp4a") || mime.includes("opus") ? " (소리 포함)" : " (소리 없음)"));
   }
   function saveBlob(blob, name) {
     const a = document.createElement("a");
@@ -2917,7 +2926,7 @@
   if (/[?&]autocam/.test(location.search) || localStorage.getItem("azar.cam") === "1") { UI.welcomed = true; startCamera(); }
 
   // 개발용: 주소에 ?nopeer 를 붙이면 자리를 잡지 않는다(테스트가 실제 자리를 차지하지 않게). window.__azar 로 상태를 들여다볼 수 있다.
-  window.__azar = { avatar, g, state, bgm, UI, recS, REC, REC_W, REC_H, onTimeUp, onGameMsg, evalVer, checkVersion, showStale, checkStart, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
+  window.__azar = { avatar, g, state, bgm, UI, recS, REC, REC_W, REC_H, audio, onTimeUp, onGameMsg, evalVer, checkVersion, showStale, checkStart, beginRound, enterSearching, startMascotRound, nextGame, finish, enterChat, renderPhone };
   // ---------- 버전 확인 ----------
   // 이 페이지의 파일(index.html)을 캐시된 복사본과 서버 최신본으로 각각 받아서 비교한다. 다르면 예전 버전이라 새로고침을 안내한다.
   const strHash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
