@@ -2116,7 +2116,8 @@
   recMe.width = recPt.width = REC_W; recMe.height = recPt.height = REC_H;
   const rcMe = recMe.getContext("2d"), rcPt = recPt.getContext("2d");
   rcPt.imageSmoothingQuality = "high";
-  const recS = { on: false, items: [] };
+  // 두 가지 버전을 저장한다: "with-countdown"(3초 카운트다운부터 끝까지)과 "game-only"(30초 게임만).
+  const recS = { full: null, game: null };
   function recMime(withAudio) {
     if (typeof MediaRecorder === "undefined") return "";
     const list = withAudio
@@ -2125,25 +2126,27 @@
     for (const t of list) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
     return "";
   }
-  function recStart() {
-    if (recS.on) return;
-    recS.partner = !g.solo && !g.mascot && !!state.remoteStream;
+  function recStart(kind) {
+    if (recS[kind]) return;
+    const partner = !g.solo && !g.mascot && !!state.remoteStream;
     // 소리: 내 파일에는 상대에게 들리는 내 목소리(목소리 변조 적용)를, 상대 파일에는 상대의 목소리를 넣는다. 배경음악과 효과음은 넣지 않는다.
     const myA = audio && audio.dest ? audio.dest.stream.getAudioTracks() : [];
     const rvStream = $("remoteVideo").srcObject, ptA = rvStream && rvStream.getAudioTracks ? rvStream.getAudioTracks() : [];
     const mime = recMime(true) || recMime(false); if (!mime) { log("이 브라우저는 영상 저장을 지원하지 않습니다."); return; }
-    recS.on = true; recS.t0 = performance.now(); recS.game = g.game; recS.mime = mime; recS.items = [];
+    const R = { t0: performance.now(), game: g.game, mime, items: [] };
     const mk = (canvas, tag, tracks) => {
       const chunks = [], stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...tracks]);
-      const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6, audioBitsPerSecond: 128000 });
+      const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6e6, audioBitsPerSecond: 128000 });
       mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       const done = new Promise((res) => { mr.onstop = () => res(new Blob(chunks, { type: mime.split(";")[0] })); });
       mr.start(1000);
       return { mr, tag, done, audio: tracks.length };
     };
-    recS.items.push(mk(recMe, "me", myA));
-    if (recS.partner) recS.items.push(mk(recPt, "partner", ptA));
-    log("영상 저장 시작" + (mime.includes("mp4a") || mime.includes("opus") ? " (소리 포함)" : " (소리 없음)"));
+    R.items.push(mk(recMe, "me", myA));
+    if (partner) R.items.push(mk(recPt, "partner", ptA));
+    R.partner = partner;
+    recS[kind] = R;
+    log(`영상 저장 시작 (${kind === "full" ? "카운트다운부터" : "게임만"})` + (mime.includes("mp4a") || mime.includes("opus") ? ", 소리 포함" : ", 소리 없음"));
   }
   function saveBlob(blob, name) {
     const a = document.createElement("a");
@@ -2151,35 +2154,40 @@
     document.body.appendChild(a); a.click();
     setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 5000);
   }
-  async function recStop() {
-    if (!recS.on) return;
-    recS.on = false;
-    const items = recS.items, dur = performance.now() - recS.t0, ext = recS.mime.includes("mp4") ? "mp4" : "webm";
-    recS.items = [];
-    items.forEach((it) => { try { it.mr.stop(); } catch (e) {} });
+  let saveChain = Promise.resolve();   // 파일이 여러 개라 순서대로 700ms 간격으로 내려받는다
+  function recStop(kind) {
+    const R = recS[kind];
+    if (!R) return;
+    recS[kind] = null;
+    const dur = performance.now() - R.t0, ext = R.mime.includes("mp4") ? "mp4" : "webm";
+    R.items.forEach((it) => { try { it.mr.stop(); } catch (e) {} });
     if (dur < 1500) return;   // 중간에 바로 끝난 판은 저장하지 않는다
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-    const gname = ({ laugh: "crack-up", eat: "yum-or-yuck", meow: "squash-and-squeak" })[recS.game] || recS.game;
-    for (const it of items) {
-      const blob = await it.done;
-      saveBlob(blob, `azar_${gname}_${it.tag}_${stamp}.${ext}`);
-      log(`영상 저장: ${it.tag} (${(blob.size / 1e6).toFixed(1)}MB)`);
-      await new Promise((r) => setTimeout(r, 700));
+    const gname = ({ laugh: "crack-up", eat: "yum-or-yuck", meow: "squash-and-squeak" })[R.game] || R.game;
+    const label = kind === "full" ? "with-countdown" : "game-only";
+    for (const it of R.items) {
+      saveChain = saveChain.then(async () => {
+        const blob = await it.done;
+        saveBlob(blob, `azar_${gname}_${it.tag}_${label}_${stamp}.${ext}`);
+        log(`영상 저장: ${it.tag} ${label} (${(blob.size / 1e6).toFixed(1)}MB)`);
+        await new Promise((r) => setTimeout(r, 700));
+      });
     }
   }
   function recFrame() {
-    if (!recS.on) return;
+    if (!recS.full && !recS.game) return;
     rcMe.drawImage(comp, (comp.width - REC_W) / 2, 0, REC_W, REC_H, 0, 0, REC_W, REC_H);
-    if (recS.partner) {
+    if ((recS.full && recS.full.partner) || (recS.game && recS.game.partner)) {
       const rv = $("remoteVideo");
       if (rv.videoWidth) { const sw = rv.videoWidth * 0.75; rcPt.drawImage(rv, (rv.videoWidth - sw) / 2, 0, sw, rv.videoHeight, 0, 0, REC_W, REC_H); }
     }
   }
   function updateRec() {
     if (!REC) return;
-    const want = g.phase === "play";
-    if (want && !recS.on) recStart();
-    else if (!want && recS.on) recStop();
+    const inCount = g.phase === "countdown", inPlay = g.phase === "play";
+    if ((inCount || inPlay) && !recS.full) recStart("full");
+    if (inPlay && !recS.game) recStart("game");
+    if (!inCount && !inPlay) { recStop("full"); recStop("game"); }
   }
 
   drawComp();
